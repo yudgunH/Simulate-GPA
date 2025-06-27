@@ -422,12 +422,74 @@ interface ScheduleEditFormProps {
 
 function ScheduleEditForm({ schedule, subjects, onSave, onCancel, timeSlots, days, classTypes }: ScheduleEditFormProps) {
   const [formData, setFormData] = useState({ ...schedule });
+  const [conflicts, setConflicts] = useState<string[]>([]);
+
+  // Check for schedule conflicts
+  const checkScheduleConflicts = (checkData: ClassSchedule): string[] => {
+    const conflictList: string[] = [];
+    
+    // Get all existing schedules from all subjects
+    subjects.forEach(subject => {
+      if (subject.schedule) {
+        subject.schedule.forEach(existingSchedule => {
+          // Skip if checking against the same schedule (when editing)
+          if (existingSchedule.id === checkData.id) {
+            return;
+          }
+
+          // Skip if different day
+          if (existingSchedule.dayOfWeek !== checkData.dayOfWeek) {
+            return;
+          }
+
+          // Convert time strings to minutes for easier comparison
+          const getMinutes = (timeStr: string) => {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+          };
+
+          const existingStart = getMinutes(existingSchedule.startTime);
+          const existingEnd = getMinutes(existingSchedule.endTime);
+          const newStart = getMinutes(checkData.startTime);
+          const newEnd = getMinutes(checkData.endTime);
+
+          // Check for time overlap
+          if (newStart < existingEnd && newEnd > existingStart) {
+            const dayName = days.find((d: any) => d.key === existingSchedule.dayOfWeek)?.name || 'Không xác định';
+            const subjectName = subject.name;
+            
+            conflictList.push(
+              `Trùng với môn "${subjectName}" vào ${dayName}, ${existingSchedule.startTime} - ${existingSchedule.endTime}`
+            );
+          }
+        });
+      }
+    });
+
+    return conflictList;
+  };
+
+  // Check conflicts whenever form data changes
+  useEffect(() => {
+    const newConflicts = checkScheduleConflicts(formData);
+    setConflicts(newConflicts);
+  }, [formData.dayOfWeek, formData.startTime, formData.endTime, formData.subjectId]);
 
   const handleSave = () => {
     if (!formData.room.trim()) {
       alert('Vui lòng nhập phòng học!');
       return;
     }
+
+    // Check for conflicts one more time before saving
+    const currentConflicts = checkScheduleConflicts(formData);
+    if (currentConflicts.length > 0) {
+      const confirmMessage = `⚠️ Phát hiện xung đột lịch học:\n\n${currentConflicts.join('\n')}\n\nBạn có chắc muốn lưu?`;
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+    }
+
     onSave(formData);
   };
 
@@ -547,14 +609,37 @@ function ScheduleEditForm({ schedule, subjects, onSave, onCancel, timeSlots, day
               placeholder="Ghi chú thêm"
             />
           </div>
+
+          {/* Conflict Warning */}
+          {conflicts.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-red-600">⚠️</span>
+                <span className="font-medium text-red-700">Phát hiện xung đột lịch học!</span>
+              </div>
+              <div className="space-y-1">
+                {conflicts.map((conflict, index) => (
+                  <div key={index} className="text-sm text-red-600">
+                    • {conflict}
+                  </div>
+                ))}
+              </div>
+              <div className="text-xs text-red-500 mt-2">
+                Bạn vẫn có thể lưu nhưng sẽ có lịch trùng nhau.
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
           <button onClick={onCancel} className="btn-secondary">
             Hủy
           </button>
-          <button onClick={handleSave} className="btn-primary">
-            Lưu
+          <button 
+            onClick={handleSave} 
+            className={`btn-primary ${conflicts.length > 0 ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
+          >
+            {conflicts.length > 0 ? '⚠️ Lưu dù có xung đột' : 'Lưu'}
           </button>
         </div>
       </div>
