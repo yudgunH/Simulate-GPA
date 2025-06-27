@@ -947,13 +947,13 @@ export default function HomePage() {
                 <div className="border-t pt-4">
                   <div className="flex flex-wrap gap-3 justify-center">
                     <button 
-                      onClick={() => window.open('https://github.com', '_blank')}
+                      onClick={() => window.open('https://github.com/yudgunH', '_blank')}
                       className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
                     >
                       🐙 GitHub
                     </button>
                     <button 
-                      onClick={() => window.open('mailto:support@simulate-gpa.com', '_blank')}
+                      onClick={() => window.open('mailto:ndhung0901@gmail.com', '_blank')}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                     >
                       📧 Liên hệ
@@ -1065,7 +1065,7 @@ export default function HomePage() {
 
           <div className="border-t border-gray-300 mt-6 pt-6 text-center">
             <p className="text-sm text-gray-500">
-              © 2024 Simulate GPA. Made with ❤️ by Vietnamese Developer for Vietnamese Students.
+              © 2025 Simulate GPA. Made with ❤️ by Vietnamese Developer for Vietnamese Students.
             </p>
             <p className="text-xs text-gray-400 mt-1">
               Open source project - Dự án mã nguồn mở phục vụ cộng đồng sinh viên Việt Nam
