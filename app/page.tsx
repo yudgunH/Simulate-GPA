@@ -17,6 +17,7 @@ import {
   importData, 
   generateId,
   exportToExcel,
+  exportDetailedExcel,
   saveDataWithBackup,
   getStorageStats,
   restoreFromBackup
@@ -30,6 +31,7 @@ export default function HomePage() {
   const [showStorageInfo, setShowStorageInfo] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [editingSemester, setEditingSemester] = useState<{id: string, name: string} | null>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -133,6 +135,79 @@ export default function HomePage() {
     setCurrentSemesterIndex(studentData.semesters.length);
   };
 
+  // Update semester name
+  const updateSemesterName = (semesterId: string, newName: string) => {
+    if (!newName.trim()) {
+      alert('Tên học kỳ không được để trống!');
+      return;
+    }
+
+    setStudentData(prev => ({
+      ...prev,
+      semesters: prev.semesters.map(sem => 
+        sem.id === semesterId 
+          ? { ...sem, name: newName.trim() }
+          : sem
+      ),
+    }));
+    setEditingSemester(null);
+  };
+
+  // Delete semester
+  const deleteSemester = (semesterIndex: number) => {
+    const semester = studentData.semesters[semesterIndex];
+    
+    // Xác nhận xóa
+    const confirmMessage = semester.subjects.length > 0 
+      ? `Bạn có chắc muốn xóa "${semester.name}"?\nHọc kỳ này có ${semester.subjects.length} môn học, tất cả sẽ bị xóa!`
+      : `Bạn có chắc muốn xóa "${semester.name}"?`;
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    const newSemesters = studentData.semesters.filter((_, index) => index !== semesterIndex);
+    
+    // Không cho xóa nếu chỉ còn 1 học kỳ
+    if (newSemesters.length === 0) {
+      alert('Không thể xóa học kỳ cuối cùng! Phải có ít nhất 1 học kỳ.');
+      return;
+    }
+
+    setStudentData(prev => ({
+      ...prev,
+      semesters: newSemesters,
+    }));
+
+    // Điều chỉnh currentSemesterIndex nếu cần
+    if (currentSemesterIndex >= newSemesters.length) {
+      setCurrentSemesterIndex(newSemesters.length - 1);
+    } else if (currentSemesterIndex > semesterIndex) {
+      setCurrentSemesterIndex(currentSemesterIndex - 1);
+    }
+  };
+
+  // Duplicate semester
+  const duplicateSemester = (semesterIndex: number) => {
+    const semesterToDuplicate = studentData.semesters[semesterIndex];
+    const newSemester: Semester = {
+      id: generateId(),
+      name: `${semesterToDuplicate.name} (Sao chép)`,
+      subjects: semesterToDuplicate.subjects.map(subject => ({
+        ...subject,
+        id: generateId(),
+        grade: null, // Reset điểm về null để nhập lại
+      })),
+      gpa: 0,
+    };
+
+    setStudentData(prev => ({
+      ...prev,
+      semesters: [...prev.semesters, newSemester],
+    }));
+    setCurrentSemesterIndex(studentData.semesters.length);
+  };
+
   // Handle file import
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -177,10 +252,16 @@ export default function HomePage() {
       {/* Action buttons */}
       <div className="flex flex-wrap gap-4 justify-center">
         <button 
-          onClick={() => exportToExcel(studentData)}
+          onClick={() => exportDetailedExcel(studentData)}
           className="btn-primary flex items-center gap-2"
         >
-          📊 Xuất Excel
+          📊 Xuất Excel chi tiết
+        </button>
+        <button 
+          onClick={() => exportToExcel(studentData)}
+          className="btn-secondary flex items-center gap-2"
+        >
+          📈 Xuất Excel cơ bản
         </button>
         <button 
           onClick={() => exportData(studentData)}
@@ -197,12 +278,7 @@ export default function HomePage() {
             className="hidden"
           />
         </label>
-        <button 
-          onClick={addSemester}
-          className="btn-secondary flex items-center gap-2"
-        >
-          ➕ Thêm học kỳ
-        </button>
+
         <button 
           onClick={() => setShowSimulation(true)}
           className="btn-secondary flex items-center gap-2"
@@ -285,22 +361,114 @@ export default function HomePage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Semester selection */}
           <div className="card">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              📚 Chọn học kỳ
-            </h2>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                📚 Quản lý học kỳ
+              </h2>
+              <div className="flex gap-2">
+                <button 
+                  onClick={addSemester}
+                  className="btn-primary text-sm flex items-center gap-1"
+                >
+                  ➕ Thêm
+                </button>
+                <button 
+                  onClick={() => duplicateSemester(currentSemesterIndex)}
+                  className="btn-secondary text-sm flex items-center gap-1"
+                >
+                  📋 Sao chép
+                </button>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
               {studentData.semesters.map((semester, index) => (
-                <button
+                <div
                   key={semester.id}
                   onClick={() => setCurrentSemesterIndex(index)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
                     index === currentSemesterIndex
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-gray-200 bg-gray-50 hover:border-primary-200 hover:bg-primary-25'
                   }`}
                 >
-                  {semester.name}
-                </button>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className={`flex items-center gap-2 font-medium ${
+                        index === currentSemesterIndex
+                          ? 'text-primary-700'
+                          : 'text-gray-700'
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full ${
+                          index === currentSemesterIndex ? 'bg-primary-500' : 'bg-gray-400'
+                        }`}></span>
+                        {editingSemester?.id === semester.id ? (
+                          <input
+                            type="text"
+                            value={editingSemester.name}
+                            onChange={(e) => setEditingSemester({...editingSemester, name: e.target.value})}
+                            onBlur={() => updateSemesterName(semester.id, editingSemester.name)}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                updateSemesterName(semester.id, editingSemester.name);
+                              } else if (e.key === 'Escape') {
+                                setEditingSemester(null);
+                              }
+                            }}
+                            className="input-field text-sm py-1 px-2 min-w-0 flex-1"
+                            autoFocus
+                          />
+                        ) : (
+                          semester.name
+                        )}
+                      </div>
+                      
+                      {index === currentSemesterIndex && (
+                        <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">
+                          {semester.subjects.length} môn
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingSemester({id: semester.id, name: semester.name});
+                        }}
+                        className="p-1 text-gray-500 hover:text-blue-600 rounded transition-colors"
+                        title="Sửa tên học kỳ"
+                      >
+                        ✏️
+                      </button>
+                      
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          duplicateSemester(index);
+                        }}
+                        className="p-1 text-gray-500 hover:text-green-600 rounded transition-colors"
+                        title="Sao chép học kỳ"
+                      >
+                        📋
+                      </button>
+                      
+                      {studentData.semesters.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSemester(index);
+                          }}
+                          className="p-1 text-gray-500 hover:text-red-600 rounded transition-colors"
+                          title="Xóa học kỳ"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -417,26 +585,48 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Scholarship Status */}
+          {/* Academic Performance Status */}
           <div className="card">
-            <h3 className="text-lg font-semibold mb-4">🏆 Tình trạng học bổng</h3>
-            <div className="space-y-2">
-              {SCHOLARSHIPS.map((scholarship) => (
-                <div 
-                  key={scholarship.name}
-                  className={`p-3 rounded-lg ${
-                    cumulativeGPA >= scholarship.minGPA 
-                      ? 'bg-green-100 text-green-700 border border-green-200' 
-                      : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  <div className="font-medium">{scholarship.name}</div>
-                  <div className="text-sm">
-                    Yêu cầu: GPA ≥ {scholarship.minGPA}
-                    {cumulativeGPA >= scholarship.minGPA ? ' ✅' : ' ❌'}
-                  </div>
+            <h3 className="text-lg font-semibold mb-4">🎓 Tình trạng học lực</h3>
+            <div className="space-y-3">
+              <div className={`p-4 rounded-lg border-2 ${academicLevel.color.includes('purple') ? 'bg-purple-50 border-purple-200' :
+                academicLevel.color.includes('blue') ? 'bg-blue-50 border-blue-200' :
+                academicLevel.color.includes('green') ? 'bg-green-50 border-green-200' :
+                academicLevel.color.includes('yellow') ? 'bg-yellow-50 border-yellow-200' :
+                academicLevel.color.includes('orange') ? 'bg-orange-50 border-orange-200' :
+                'bg-red-50 border-red-200'}`}>
+                <div className={`text-xl font-bold ${academicLevel.color}`}>
+                  {academicLevel.level}
                 </div>
-              ))}
+                <div className="text-sm text-gray-600 mt-1">
+                  GPA: {cumulativeGPA.toFixed(3)} (Thang 4.0)
+                </div>
+                <div className="text-sm text-gray-600">
+                  Khoảng: {academicLevel.minGPA.toFixed(1)} - {academicLevel.maxGPA.toFixed(1)}
+                </div>
+              </div>
+              
+              {/* Scholarship eligibility as sub-section */}
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">🏆 Đủ điều kiện học bổng:</h4>
+                <div className="space-y-1">
+                  {SCHOLARSHIPS.map((scholarship) => (
+                    <div 
+                      key={scholarship.name}
+                      className={`p-2 rounded text-sm ${
+                        cumulativeGPA >= scholarship.minGPA 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-gray-50 text-gray-500'
+                      }`}
+                    >
+                      <span className="font-medium">{scholarship.name}</span>
+                      <span className="ml-2">
+                        {cumulativeGPA >= scholarship.minGPA ? '✅' : '❌'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -466,4 +656,5 @@ export default function HomePage() {
     </div>
   );
 }
+
 
