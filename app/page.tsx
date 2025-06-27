@@ -19,6 +19,7 @@ import {
   importFromExcel,
   generateId,
   exportSimpleExcel,
+  exportScheduleToExcel,
   saveDataWithBackup,
   getStorageStats,
   restoreFromBackup
@@ -352,6 +353,14 @@ export default function HomePage() {
           className="btn-secondary flex items-center gap-2"
         >
           📅 Thời khóa biểu
+        </button>
+        <button 
+          onClick={() => exportScheduleToExcel(studentData, currentSemesterIndex)}
+          className="btn-secondary flex items-center gap-2"
+          disabled={!currentSemester.subjects.some(s => s.schedule && s.schedule.length > 0)}
+          title="Xuất thời khóa biểu học kỳ hiện tại ra Excel"
+        >
+          📊 Xuất TKB Excel
         </button>
       </div>
 
@@ -780,6 +789,8 @@ export default function HomePage() {
         onClose={() => setShowSchedule(false)}
         subjects={currentSemester.subjects}
         onUpdateSubject={handleScheduleUpdate}
+        studentData={studentData}
+        currentSemesterIndex={currentSemesterIndex}
       />
     </div>
   );

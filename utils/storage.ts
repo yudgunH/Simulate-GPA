@@ -503,6 +503,221 @@ export function exportSimpleExcel(data: StudentRecord): void {
   console.log('✅ Đã xuất file Excel đơn giản:', fileName);
 }
 
+// Export thời khóa biểu ra Excel
+export function exportScheduleToExcel(data: StudentRecord, semesterIndex?: number): void {
+  const wb = XLSX.utils.book_new();
+  
+  // Khung giờ chuẩn
+  const timeSlots = [
+    { period: 1, startTime: '07:00', endTime: '07:50' },
+    { period: 2, startTime: '08:00', endTime: '08:50' },
+    { period: 3, startTime: '09:00', endTime: '09:50' },
+    { period: 4, startTime: '10:00', endTime: '10:50' },
+    { period: 5, startTime: '11:00', endTime: '11:50' },
+    { period: 6, startTime: '13:00', endTime: '13:50' },
+    { period: 7, startTime: '14:00', endTime: '14:50' },
+    { period: 8, startTime: '15:00', endTime: '15:50' },
+    { period: 9, startTime: '16:00', endTime: '16:50' },
+    { period: 10, startTime: '17:00', endTime: '17:50' },
+    { period: 11, startTime: '18:00', endTime: '18:50' },
+    { period: 12, startTime: '19:00', endTime: '19:50' },
+  ];
+
+  const days = [
+    { key: 1, name: 'Thứ 2', short: 'T2' },
+    { key: 2, name: 'Thứ 3', short: 'T3' },
+    { key: 3, name: 'Thứ 4', short: 'T4' },
+    { key: 4, name: 'Thứ 5', short: 'T5' },
+    { key: 5, name: 'Thứ 6', short: 'T6' },
+    { key: 6, name: 'Thứ 7', short: 'T7' },
+    { key: 0, name: 'Chủ nhật', short: 'CN' },
+  ];
+
+  const classTypes = {
+    'lecture': 'Lý thuyết',
+    'lab': 'Thực hành', 
+    'tutorial': 'Bài tập',
+    'exam': 'Thi/KT'
+  };
+
+  // Lấy danh sách học kỳ cần export
+  const semestersToExport = semesterIndex !== undefined 
+    ? [data.semesters[semesterIndex]]
+    : data.semesters;
+
+  semestersToExport.forEach((semester, index) => {
+    // Tạo lưới thời khóa biểu
+    const scheduleGrid: string[][] = [];
+    
+    // Header row
+    const headerRow = ['Tiết / Thứ', ...days.map(d => d.name)];
+    scheduleGrid.push(headerRow);
+    
+    // Tạo ma trận thời khóa biểu
+    timeSlots.forEach(slot => {
+      const row = [`Tiết ${slot.period}\n(${slot.startTime}-${slot.endTime})`];
+      
+      days.forEach(day => {
+        let cellContent = '';
+        
+        // Tìm các môn học trong khung giờ này
+        semester.subjects.forEach(subject => {
+          if (subject.schedule) {
+            subject.schedule.forEach(classSchedule => {
+              if (classSchedule.dayOfWeek === day.key) {
+                // Kiểm tra xem lịch này có trong khung giờ hiện tại không
+                const scheduleStartTime = classSchedule.startTime;
+                const scheduleEndTime = classSchedule.endTime;
+                
+                // Nếu khung giờ này nằm trong khoảng thời gian của lịch học
+                if (scheduleStartTime <= slot.startTime && slot.endTime <= scheduleEndTime) {
+                  const typeText = classTypes[classSchedule.type as keyof typeof classTypes] || classSchedule.type;
+                  const roomText = classSchedule.room ? ` - ${classSchedule.room}` : '';
+                  const instructorText = classSchedule.instructor ? `\nGV: ${classSchedule.instructor}` : '';
+                  
+                  cellContent += `${subject.name} (${typeText})${roomText}${instructorText}\n`;
+                }
+              }
+            });
+          }
+        });
+        
+        row.push(cellContent.trim() || '');
+      });
+      
+      scheduleGrid.push(row);
+    });
+    
+    // Tạo worksheet cho thời khóa biểu lưới
+    const wsGrid = XLSX.utils.aoa_to_sheet(scheduleGrid);
+    
+    // Thiết lập độ rộng cột
+    wsGrid['!cols'] = [
+      { wch: 15 }, // Cột tiết học
+      { wch: 25 }, // Thứ 2
+      { wch: 25 }, // Thứ 3
+      { wch: 25 }, // Thứ 4
+      { wch: 25 }, // Thứ 5
+      { wch: 25 }, // Thứ 6
+      { wch: 25 }, // Thứ 7
+      { wch: 25 }, // Chủ nhật
+    ];
+
+    // Thiết lập chiều cao hàng
+    wsGrid['!rows'] = scheduleGrid.map(() => ({ hpt: 60 }));
+    
+    const gridSheetName = semesterIndex !== undefined 
+      ? `TKB Lưới`
+      : `TKB Lưới - ${semester.name}`;
+    XLSX.utils.book_append_sheet(wb, wsGrid, gridSheetName);
+
+    // Tạo sheet danh sách chi tiết
+    const detailData: any[] = [];
+    
+    semester.subjects.forEach(subject => {
+      if (subject.schedule && subject.schedule.length > 0) {
+        subject.schedule.forEach(classSchedule => {
+          const dayName = days.find(d => d.key === classSchedule.dayOfWeek)?.name || 'Không xác định';
+          const typeText = classTypes[classSchedule.type as keyof typeof classTypes] || classSchedule.type;
+          
+          detailData.push({
+            'Tên môn học': subject.name,
+            'Tín chỉ': subject.credits,
+            'Thứ': dayName,
+            'Giờ bắt đầu': classSchedule.startTime,
+            'Giờ kết thúc': classSchedule.endTime,
+            'Phòng học': classSchedule.room || '',
+            'Tòa nhà': classSchedule.building || '',
+            'Loại tiết': typeText,
+            'Giảng viên': classSchedule.instructor || '',
+            'Ghi chú': classSchedule.note || ''
+          });
+        });
+      }
+    });
+
+    if (detailData.length > 0) {
+      const wsDetail = XLSX.utils.json_to_sheet(detailData);
+      wsDetail['!cols'] = [
+        { wch: 25 }, // Tên môn học
+        { wch: 8 },  // Tín chỉ
+        { wch: 10 }, // Thứ
+        { wch: 12 }, // Giờ bắt đầu
+        { wch: 12 }, // Giờ kết thúc
+        { wch: 15 }, // Phòng học
+        { wch: 15 }, // Tòa nhà
+        { wch: 12 }, // Loại tiết
+        { wch: 20 }, // Giảng viên
+        { wch: 20 }  // Ghi chú
+      ];
+      
+      const detailSheetName = semesterIndex !== undefined 
+        ? `TKB Chi tiết`
+        : `TKB Chi tiết - ${semester.name}`;
+      XLSX.utils.book_append_sheet(wb, wsDetail, detailSheetName);
+    }
+  });
+
+  // Tạo sheet thống kê
+  const statsData = [
+    ['📅 THỐNG KÊ THỜI KHÓA BIỂU', ''],
+    ['Sinh viên:', data.studentName || 'Sinh viên'],
+    ['Ngày xuất:', new Date().toLocaleDateString('vi-VN')],
+    ['', ''],
+    ['Thống kê theo học kỳ:', ''],
+    ['Học kỳ', 'Số môn', 'Số lịch học', 'Số tiết/tuần'],
+  ];
+
+  semestersToExport.forEach(semester => {
+    const totalSchedules = semester.subjects.reduce((total, subject) => 
+      total + (subject.schedule?.length || 0), 0
+    );
+    
+    // Tính số tiết trong tuần (mỗi lịch học là 1 khoảng thời gian, có thể nhiều tiết)
+    const totalPeriods = semester.subjects.reduce((total, subject) => {
+      if (subject.schedule) {
+        return total + subject.schedule.reduce((subTotal, schedule) => {
+          // Tính số tiết dựa trên khoảng thời gian
+          const startTime = schedule.startTime;
+          const endTime = schedule.endTime;
+          
+          const getMinutes = (timeStr: string) => {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+          };
+          
+          const duration = getMinutes(endTime) - getMinutes(startTime);
+          const periods = Math.ceil(duration / 50); // Mỗi tiết 50 phút
+          
+          return subTotal + periods;
+        }, 0);
+      }
+      return total;
+    }, 0);
+
+    statsData.push([
+      semester.name,
+      semester.subjects.length.toString(),
+      totalSchedules.toString(),
+      totalPeriods.toString()
+    ]);
+  });
+
+  const wsStats = XLSX.utils.aoa_to_sheet(statsData);
+  wsStats['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(wb, wsStats, 'Thống kê');
+
+  // Xuất file
+  const semesterText = semesterIndex !== undefined 
+    ? `_${semestersToExport[0].name.replace(/[^a-zA-Z0-9]/g, '')}`
+    : '_TatCaHocKy';
+  
+  const fileName = `ThoiKhoaBieu_${data.studentName || 'SinhVien'}${semesterText}_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+  
+  console.log('✅ Đã xuất thời khóa biểu ra Excel:', fileName);
+}
+
 // Export dữ liệu ra file Excel với thông tin đầy đủ
 export function exportToExcel(data: StudentRecord): void {
   const workbook = XLSX.utils.book_new();

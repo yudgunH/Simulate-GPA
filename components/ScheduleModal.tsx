@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Subject, ClassSchedule, WeekSchedule } from '@/types';
-import { generateId } from '@/utils/storage';
+import { Subject, ClassSchedule, WeekSchedule, StudentRecord } from '@/types';
+import { generateId, exportScheduleToExcel } from '@/utils/storage';
 
 interface ScheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
   subjects: Subject[];
   onUpdateSubject: (subjectId: string, schedule: ClassSchedule[]) => void;
+  studentData?: StudentRecord;
+  currentSemesterIndex?: number;
 }
 
 const TIME_SLOTS = [
@@ -43,7 +45,7 @@ const CLASS_TYPES = [
   { key: 'exam', name: 'Thi/KT', color: 'bg-red-100 text-red-800' },
 ];
 
-export default function ScheduleModal({ isOpen, onClose, subjects, onUpdateSubject }: ScheduleModalProps) {
+export default function ScheduleModal({ isOpen, onClose, subjects, onUpdateSubject, studentData, currentSemesterIndex }: ScheduleModalProps) {
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
@@ -198,6 +200,25 @@ export default function ScheduleModal({ isOpen, onClose, subjects, onUpdateSubje
           {/* Add Schedule Controls */}
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
             <div className="flex flex-wrap items-center gap-4">
+              {/* Export Controls */}
+              {studentData && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => exportScheduleToExcel(studentData, currentSemesterIndex)}
+                    className="btn-secondary flex items-center gap-2 text-sm"
+                    disabled={!subjects.some(s => s.schedule && s.schedule.length > 0)}
+                  >
+                    📊 Xuất Excel học kỳ này
+                  </button>
+                  <button
+                    onClick={() => exportScheduleToExcel(studentData)}
+                    className="btn-secondary flex items-center gap-2 text-sm"
+                    disabled={!studentData.semesters.some(sem => sem.subjects.some(s => s.schedule && s.schedule.length > 0))}
+                  >
+                    📋 Xuất Excel tất cả học kỳ
+                  </button>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1">Chọn môn học:</label>
                 <select
