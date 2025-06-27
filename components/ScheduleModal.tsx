@@ -564,6 +564,18 @@ interface ScheduleEditFormProps {
 function ScheduleEditForm({ schedule, subjects, onSave, onCancel, onDelete, onUpdateSubject, timeSlots, days, classTypes }: ScheduleEditFormProps) {
   const [formData, setFormData] = useState({ ...schedule });
   const [conflicts, setConflicts] = useState<string[]>([]);
+  const [useCustomTime, setUseCustomTime] = useState(() => {
+    // Check if current times are not in preset timeSlots
+    const startTimeExists = timeSlots.some((slot: any) => slot.startTime === schedule.startTime);
+    const endTimeExists = timeSlots.some((slot: any) => slot.endTime === schedule.endTime);
+    return !startTimeExists || !endTimeExists;
+  });
+
+  // Helper function to convert time string to minutes
+  const timeToMinutes = (timeStr: string): number => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
 
   // Check for schedule conflicts and return conflicting schedules info
   const checkScheduleConflicts = (checkData: ClassSchedule): { 
@@ -588,15 +600,10 @@ function ScheduleEditForm({ schedule, subjects, onSave, onCancel, onDelete, onUp
           }
 
           // Convert time strings to minutes for easier comparison
-          const getMinutes = (timeStr: string) => {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            return hours * 60 + minutes;
-          };
-
-          const existingStart = getMinutes(existingSchedule.startTime);
-          const existingEnd = getMinutes(existingSchedule.endTime);
-          const newStart = getMinutes(checkData.startTime);
-          const newEnd = getMinutes(checkData.endTime);
+          const existingStart = timeToMinutes(existingSchedule.startTime);
+          const existingEnd = timeToMinutes(existingSchedule.endTime);
+          const newStart = timeToMinutes(checkData.startTime);
+          const newEnd = timeToMinutes(checkData.endTime);
 
           // Check for time overlap
           if (newStart < existingEnd && newEnd > existingStart) {
@@ -629,6 +636,32 @@ function ScheduleEditForm({ schedule, subjects, onSave, onCancel, onDelete, onUp
   const handleSave = () => {
     if (!formData.room.trim()) {
       alert('Vui lòng nhập phòng học!');
+      return;
+    }
+
+    // Validate time format and logic
+    if (!formData.startTime || !formData.endTime) {
+      alert('Vui lòng nhập đầy đủ thời gian bắt đầu và kết thúc!');
+      return;
+    }
+
+    // Check if end time is after start time
+    const startMinutes = timeToMinutes(formData.startTime);
+    const endMinutes = timeToMinutes(formData.endTime);
+    
+    if (endMinutes <= startMinutes) {
+      alert('Giờ kết thúc phải sau giờ bắt đầu!');
+      return;
+    }
+
+    // Check for reasonable duration (between 30 minutes and 6 hours)
+    const durationMinutes = endMinutes - startMinutes;
+    if (durationMinutes < 30) {
+      alert('Thời gian học phải ít nhất 30 phút!');
+      return;
+    }
+    if (durationMinutes > 360) {
+      alert('Thời gian học không thể quá 6 tiếng!');
       return;
     }
 
@@ -740,35 +773,112 @@ function ScheduleEditForm({ schedule, subjects, onSave, onCancel, onDelete, onUp
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Giờ bắt đầu:</label>
-              <select
-                value={formData.startTime}
-                onChange={(e) => setFormData({...formData, startTime: e.target.value})}
-                className="input-field w-full"
-              >
-                {timeSlots.map((slot: any) => (
-                  <option key={slot.startTime} value={slot.startTime}>
-                    {slot.startTime}
-                  </option>
-                ))}
-              </select>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium">Thời gian học:</label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600">Tùy chỉnh thời gian</span>
+                <button
+                  type="button"
+                  onClick={() => setUseCustomTime(!useCustomTime)}
+                  className={`w-10 h-5 rounded-full relative transition-colors ${
+                    useCustomTime ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${
+                    useCustomTime ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}></div>
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Giờ kết thúc:</label>
-              <select
-                value={formData.endTime}
-                onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                className="input-field w-full"
-              >
-                {timeSlots.map((slot: any) => (
-                  <option key={slot.endTime} value={slot.endTime}>
-                    {slot.endTime}
-                  </option>
-                ))}
-              </select>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Giờ bắt đầu:</label>
+                {useCustomTime ? (
+                  <input
+                    type="time"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData({...formData, startTime: e.target.value})}
+                    className="input-field w-full"
+                  />
+                ) : (
+                  <select
+                    value={formData.startTime}
+                    onChange={(e) => setFormData({...formData, startTime: e.target.value})}
+                    className="input-field w-full"
+                  >
+                    {timeSlots.map((slot: any) => (
+                      <option key={slot.startTime} value={slot.startTime}>
+                        Tiết {slot.period} - {slot.startTime}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Giờ kết thúc:</label>
+                {useCustomTime ? (
+                  <input
+                    type="time"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData({...formData, endTime: e.target.value})}
+                    className="input-field w-full"
+                  />
+                ) : (
+                  <select
+                    value={formData.endTime}
+                    onChange={(e) => setFormData({...formData, endTime: e.target.value})}
+                    className="input-field w-full"
+                  >
+                    {timeSlots.map((slot: any) => (
+                      <option key={slot.endTime} value={slot.endTime}>
+                        Tiết {slot.period} - {slot.endTime}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
+            
+            {useCustomTime && (
+              <div className="mt-2 space-y-2">
+                <div className="p-2 bg-blue-50 rounded text-xs text-blue-700">
+                  💡 <strong>Mẹo:</strong> Bạn có thể nhập bất kỳ thời gian nào, ví dụ: 07:30, 14:45, 20:15...
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <span className="text-xs text-gray-600">Nhanh:</span>
+                  {[
+                    { label: '1 tiết (50p)', start: '07:00', end: '07:50' },
+                    { label: '2 tiết (100p)', start: '08:00', end: '09:40' },
+                    { label: '3 tiết (150p)', start: '09:00', end: '11:30' },
+                    { label: 'Buổi sáng', start: '07:00', end: '11:50' },
+                    { label: 'Buổi chiều', start: '13:00', end: '17:50' }
+                  ].map((preset, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData, 
+                        startTime: preset.start, 
+                        endTime: preset.end
+                      })}
+                      className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Show duration info */}
+            {formData.startTime && formData.endTime && (
+              <div className="mt-2 text-xs text-gray-600 text-center">
+                ⏱️ Thời lượng: {Math.round((timeToMinutes(formData.endTime) - timeToMinutes(formData.startTime)) / 60 * 10) / 10} tiếng 
+                ({timeToMinutes(formData.endTime) - timeToMinutes(formData.startTime)} phút)
+              </div>
+            )}
           </div>
 
           <div>
