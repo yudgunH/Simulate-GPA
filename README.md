@@ -298,10 +298,10 @@ restoreFromBackup(): StudentRecord[]
 
 ## 📞 Liên hệ và Hỗ trợ
 
-- **📧 Email**: support@simulate-gpa.com
-- **🐛 Bug Reports**: [GitHub Issues](https://github.com/yourusername/simulate-gpa/issues)
-- **💡 Feature Requests**: [GitHub Discussions](https://github.com/yourusername/simulate-gpa/discussions)
-- **📚 Documentation**: [Wiki](https://github.com/yourusername/simulate-gpa/wiki)
+- **📧 Email**: ndhung0901@gmail.com
+- **🐛 Bug Reports**: [GitHub Issues](https://github.com/yudgunH)
+- **💡 Feature Requests**: [GitHub Discussions](https://github.com/yudgunH)
+- **📚 Documentation**: [Wiki](https://github.com/yudgunH)
 
 ---
 
@@ -311,6 +311,6 @@ restoreFromBackup(): StudentRecord[]
 
 Made with ❤️ by Vietnamese Developers
 
-[🚀 Live Demo](https://simulate-gpa.vercel.app) | [📖 Documentation](https://github.com/yourusername/simulate-gpa/wiki) | [🐛 Report Bug](https://github.com/yourusername/simulate-gpa/issues)
+[🚀 Live Demo](https://simulate-gpa.vercel.app) | [📖 Documentation](https://github.com/yudgunH) | [🐛 Report Bug](https://github.com/yudgunH)
 
 </div>
