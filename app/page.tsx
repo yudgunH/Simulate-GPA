@@ -37,6 +37,7 @@ export default function HomePage() {
   const [showGPASettings, setShowGPASettings] = useState(false);
   const [showBackup, setShowBackup] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [editingSemester, setEditingSemester] = useState<{id: string, name: string} | null>(null);
@@ -361,6 +362,13 @@ export default function HomePage() {
           title="Xuất thời khóa biểu học kỳ hiện tại ra Excel"
         >
           📊 Xuất TKB Excel
+        </button>
+        <button 
+          onClick={() => setShowAbout(true)}
+          className="btn-secondary flex items-center gap-2"
+          title="Thông tin về tác giả và ứng dụng"
+        >
+          👨‍💻 Về tác giả
         </button>
       </div>
 
@@ -792,6 +800,279 @@ export default function HomePage() {
         studentData={studentData}
         currentSemesterIndex={currentSemesterIndex}
       />
+
+      {/* About Modal */}
+      {showAbout && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  👨‍💻 Về tác giả & Ứng dụng
+                </h2>
+                <button
+                  onClick={() => setShowAbout(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="space-y-6">
+                {/* App Info */}
+                <div className="text-center p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                  <div className="text-4xl mb-3">📊</div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">Simulate GPA</h3>
+                  <p className="text-gray-600">
+                    Ứng dụng tính toán và mô phỏng GPA học tập
+                  </p>
+                  <div className="mt-3 flex justify-center gap-2 text-sm">
+                    <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">v2.0.0</span>
+                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded">Next.js 14</span>
+                    <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">TypeScript</span>
+                  </div>
+                </div>
+
+                {/* Developer Info */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      🚀 Tính năng nổi bật
+                    </h4>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-500">✅</span>
+                        6 thang đo GPA tùy chỉnh
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-500">✅</span>
+                        Thời khóa biểu đầy đủ
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-500">✅</span>
+                        Phát hiện xung đột lịch học
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-500">✅</span>
+                        Export Excel chuyên nghiệp
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-500">✅</span>
+                        Backup tự động & an toàn
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-500">✅</span>
+                        Mô phỏng kết quả thông minh
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      🛠️ Công nghệ
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Framework:</span>
+                        <span className="font-medium">Next.js 14</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Language:</span>
+                        <span className="font-medium">TypeScript</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Styling:</span>
+                        <span className="font-medium">Tailwind CSS</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Storage:</span>
+                        <span className="font-medium">localStorage</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Export:</span>
+                        <span className="font-medium">XLSX.js</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Developer */}
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    👨‍💻 Nhà phát triển
+                  </h4>
+                  <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                      👤
+                    </div>
+                    <div className="flex-1">
+                      <h5 className="font-semibold text-gray-800 mb-2">Vietnamese Developer</h5>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Passionate fullstack developer focused on creating useful educational tools for Vietnamese students. 
+                        Specialized in React, Next.js, and modern web technologies.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">React</span>
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Next.js</span>
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">TypeScript</span>
+                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Node.js</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">2.0</div>
+                    <div className="text-xs text-blue-600">Version</div>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">6</div>
+                    <div className="text-xs text-green-600">Thang đo GPA</div>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">15+</div>
+                    <div className="text-xs text-purple-600">Tính năng</div>
+                  </div>
+                  <div className="text-center p-3 bg-orange-50 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">100%</div>
+                    <div className="text-xs text-orange-600">Miễn phí</div>
+                  </div>
+                </div>
+
+                {/* Links */}
+                <div className="border-t pt-4">
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    <button 
+                      onClick={() => window.open('https://github.com', '_blank')}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                    >
+                      🐙 GitHub
+                    </button>
+                    <button 
+                      onClick={() => window.open('mailto:support@simulate-gpa.com', '_blank')}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      📧 Liên hệ
+                    </button>
+                    <button 
+                      onClick={() => {
+                        alert('⭐ Cảm ơn bạn đã sử dụng Simulate GPA!\n\nNếu ứng dụng hữu ích, hãy chia sẻ cho bạn bè nhé! 🎓');
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm"
+                    >
+                      ⭐ Đánh giá
+                    </button>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="text-center text-sm text-gray-500 border-t pt-4">
+                  <p>Made with ❤️ for Vietnamese Students</p>
+                  <p className="mt-1">© 2024 Simulate GPA - Open Source Project</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="mt-16 border-t border-gray-200 bg-gray-50">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* App Info */}
+            <div>
+              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                📊 Simulate GPA
+              </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Ứng dụng tính toán và mô phỏng GPA học tập hiện đại, 
+                giúp sinh viên quản lý điểm số và lập kế hoạch học tập hiệu quả.
+              </p>
+              <div className="flex gap-2">
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">v2.0.0</span>
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Free</span>
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Open Source</span>
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="font-semibold text-gray-800 mb-3">🔗 Liên kết nhanh</h4>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li>
+                  <button 
+                    onClick={() => setShowAbout(true)}
+                    className="hover:text-blue-600 transition-colors"
+                  >
+                    📖 Về ứng dụng
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => setShowGPASettings(true)}
+                    className="hover:text-blue-600 transition-colors"
+                  >
+                    ⚙️ Cấu hình thang đo
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => setShowBackup(true)}
+                    className="hover:text-blue-600 transition-colors"
+                  >
+                    💾 Quản lý backup
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => setShowSchedule(true)}
+                    className="hover:text-blue-600 transition-colors"
+                  >
+                    📅 Thời khóa biểu
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Contact & Support */}
+            <div>
+              <h4 className="font-semibold text-gray-800 mb-3">💬 Hỗ trợ</h4>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-center gap-2">
+                  <span>📧</span>
+                  <span>ndhung0901@gmail.com</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span>🐙</span>
+                  <span>https://github.com/yudgunH</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span>🌟</span>
+                  <span>Made with ❤️ in Vietnam</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span>⚡</span>
+                  <span>Next.js + TypeScript</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-300 mt-6 pt-6 text-center">
+            <p className="text-sm text-gray-500">
+              © 2024 Simulate GPA. Made with ❤️ by Vietnamese Developer for Vietnamese Students.
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Open source project - Dự án mã nguồn mở phục vụ cộng đồng sinh viên Việt Nam
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

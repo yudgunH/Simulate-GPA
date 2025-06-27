@@ -1,158 +1,316 @@
-# 📊 Simulate GPA - Ứng dụng tính toán và mô phỏng GPA
+# 📊 Simulate GPA
 
-## 🎯 Mục tiêu
+> **Ứng dụng tính toán và mô phỏng GPA học tập - Trước khi bảng điểm thật xuất hiện!** 🎓
 
-Ứng dụng web giúp sinh viên:
-- **Nhập điểm từng môn** (hoặc điểm kỳ vọng)
-- **Tính toán GPA** học kỳ và GPA toàn khóa
-- **Mô phỏng tình huống**: Rớt môn, đạt A, ảnh hưởng đến học bổng
-- **Gợi ý cải thiện**: Cần bao nhiêu điểm để đạt học bổng/loại khá giỏi
+## 🚀 Tổng quan
 
-## ✨ Tính năng chính
+**Simulate GPA** là ứng dụng web hiện đại giúp sinh viên:
 
-### 📚 Quản lý điểm số
-- Nhập bảng điểm theo từng học kỳ
-- Tên môn, số tín chỉ, điểm số (thang 10)
-- Hỗ trợ nhiều học kỳ
+- ✅ **Tính toán GPA** chính xác với nhiều thang đo
+- 📈 **Mô phỏng kết quả** học tập trong tương lai
+- 📅 **Quản lý thời khóa biểu** chi tiết và trực quan
+- 📊 **Xuất báo cáo Excel** chuyên nghiệp
+- 💾 **Sao lưu dữ liệu** tự động và an toàn
 
-### 🧮 Tính toán GPA
-- GPA học kỳ hiện tại  
-- GPA tích lũy toàn khóa
-- Chuyển đổi tự động sang thang 4.0
-- Xác định học lực (Xuất sắc, Giỏi, Khá, TB, Yếu, Kém)
+## ✨ Tính năng nổi bật
+
+### 🧮 Hệ thống GPA thông minh
+
+- **6 thang đo tùy chỉnh**: Việt Nam 4.0, Mỹ 4.0/4.3, Simple 4.0/5.0
+- **Tính toán real-time**: GPA học kỳ và tích lũy
+- **Phân loại học lực**: Xuất sắc, Giỏi, Khá, Trung bình, Yếu
+- **Đánh giá học bổng**: Tự động kiểm tra điều kiện
+
+### 📊 Quản lý học tập
+
+- **Nhiều học kỳ**: Thêm, sửa, xóa, sao chép học kỳ
+- **Quản lý môn học**: Tên môn, tín chỉ, điểm số
+- **Gợi ý cải thiện**: AI suggestions để nâng cao GPA
+- **Backup tự động**: 5 bản sao lưu gần nhất
+
+### 📅 Thời khóa biểu đầy đủ
+
+- **2 chế độ xem**: Grid (lưới) và List (danh sách)
+- **Thời gian linh hoạt**: Preset + Custom time input
+- **Phát hiện xung đột**: Thông báo và tùy chọn thay thế
+- **Thông tin chi tiết**: Phòng, giảng viên, loại tiết, ghi chú
+- **5 cách xóa lịch**: Từ từng lịch đến toàn bộ học kỳ
+
+### 📥📤 Import/Export mạnh mẽ
+
+- **Excel format**: Xuất bảng điểm và thời khóa biểu
+- **JSON backup**: Sao lưu và khôi phục dữ liệu
+- **Template import**: Import từ file Excel có sẵn
+- **Multiple sheets**: Tổng quan, chi tiết, thống kê
 
 ### 🎯 Mô phỏng kết quả
-- **Thay đổi điểm**: Xem GPA thay đổi thế nào nếu điều chỉnh điểm môn X
-- **Tình huống nhanh**: Ảnh hưởng nếu rớt 1 môn hoặc đạt 9.0
-- **Mục tiêu GPA**: Tính toán điểm cần thiết để đạt GPA mong muốn
 
-### 🏆 Theo dõi học bổng
-- Kiểm tra đủ điều kiện các loại học bổng
-- Gợi ý cải thiện để đạt mục tiêu
-- Cảnh báo rủi ro mất học bổng
-
-### 💾 Lưu trữ và chia sẻ
-- Tự động lưu dữ liệu với localStorage
-- Export/Import file .json để backup
-- Dữ liệu được bảo toàn giữa các phiên
-
-## 🚀 Cài đặt và chạy
-
-### Yêu cầu hệ thống
-- Node.js 18+ 
-- npm hoặc yarn
-
-### Cài đặt
-```bash
-# Clone repository
-git clone https://github.com/your-username/Simulate-GPA.git
-cd Simulate-GPA
-
-# Cài đặt dependencies
-npm install
-
-# Chạy development server
-npm run dev
-
-# Hoặc build production
-npm run build
-npm start
-```
-
-### Truy cập ứng dụng
-Mở trình duyệt và vào: `http://localhost:3000`
+- **Dự đoán GPA**: Với điểm số giả định
+- **Scenario planning**: Nhiều kịch bản khác nhau
+- **Goal setting**: Tính toán điểm cần thiết
 
 ## 🛠️ Công nghệ sử dụng
 
-- **Frontend**: Next.js 14 + React 18 + TypeScript
+### Frontend
+
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **Icons**: Emoji (không cần icon library)
-- **Storage**: localStorage (không cần backend)
-- **Build**: Next.js static export
+- **Components**: React Hooks, Custom Components
+
+### Data & Storage
+
+- **Storage**: localStorage với backup system
+- **Export**: XLSX library cho Excel
+- **State**: React useState/useEffect
+
+### Features
+
+- **Responsive Design**: Mobile-first approach
+- **PWA Ready**: Có thể cài đặt như app
+- **Performance**: Optimized với Next.js
+- **Accessibility**: ARIA labels và keyboard support
+
+## 📦 Cài đặt và chạy
+
+### Yêu cầu hệ thống
+
+- **Node.js**: 18.17+
+- **npm**: 9.0+ hoặc yarn 1.22+
+
+### Clone và cài đặt
+
+```bash
+# Clone repository
+git clone https://github.com/yourusername/simulate-gpa.git
+cd simulate-gpa
+
+# Cài đặt dependencies
+npm install
+# hoặc
+yarn install
+
+# Chạy development server
+npm run dev
+# hoặc
+yarn dev
+
+# Mở browser tại http://localhost:3000
+```
+
+### Build production
+
+```bash
+# Build ứng dụng
+npm run build
+npm start
+
+# hoặc
+yarn build
+yarn start
+```
 
 ## 📖 Hướng dẫn sử dụng
 
-### 1. Nhập điểm số
-- Chọn học kỳ hiện tại hoặc tạo học kỳ mới
-- Thêm các môn học với tên, tín chỉ và điểm
-- Hệ thống tự động tính GPA khi bạn nhập
+### 🎯 Bắt đầu nhanh
 
-### 2. Xem kết quả
-- **GPA học kỳ**: Điểm trung bình học kỳ hiện tại
-- **GPA tích lũy**: Điểm trung bình toàn khóa
-- **Học lực**: Xếp loại theo thang GPA
-- **Học bổng**: Kiểm tra đủ điều kiện
+1. **Thêm môn học**: Click "➕ Thêm môn" và nhập thông tin
+2. **Nhập điểm**: Điền điểm số (0-10) cho từng môn
+3. **Xem kết quả**: GPA hiển thị real-time bên phải
+4. **Xuất báo cáo**: Click "📊 Xuất Excel" để tải file
 
-### 3. Mô phỏng tình huống
-- Click "🎯 Mô phỏng kết quả"
-- Thay đổi điểm môn bất kỳ để xem ảnh hưởng
-- Đặt mục tiêu GPA để tính điểm cần thiết
-- Xem tình huống nhanh (rớt môn, đạt cao điểm)
+### 📚 Quản lý học kỳ
 
-### 4. Backup dữ liệu
-- "📥 Xuất file": Tải về file .json chứa toàn bộ dữ liệu
-- "📤 Nhập file": Khôi phục từ file backup
+```
+📚 Quản lý học kỳ
+├── ➕ Thêm học kỳ mới
+├── 📋 Sao chép học kỳ hiện tại
+├── ✏️ Sửa tên học kỳ
+└── 🗑️ Xóa học kỳ (có xác nhận)
+```
 
-## 🎨 Giao diện
+### ⚙️ Cấu hình thang đo
 
-### Desktop
-- Layout 3 cột: Form nhập (2/3) + Kết quả (1/3)
-- Bảng nhập điểm trực quan
-- Card hiển thị kết quả rõ ràng
+1. Click "⚙️ Cấu hình thang đo"
+2. Chọn preset hoặc tùy chỉnh:
+   - **Việt Nam (4.0)**: A+=4.0, A=3.7, B+=3.3...
+   - **Mỹ (4.0)**: A=4.0, B=3.0, C=2.0...
+   - **Simple (4.0/5.0)**: A,B,C,D không dấu cộng
+3. Preview và lưu cài đặt
 
-### Mobile  
-- Responsive design
-- Stack layout cho màn hình nhỏ
-- Touch-friendly controls
+### 📅 Thời khóa biểu
 
-## 📊 Thang điểm
+1. **Mở modal**: Click "📅 Thời khóa biểu"
+2. **Thêm lịch**: Chọn môn → "➕ Thêm lịch học"
+3. **Nhập thông tin**:
+   - Thứ trong tuần
+   - Thời gian (Preset hoặc Custom)
+   - Phòng học, giảng viên
+   - Loại tiết, ghi chú
+4. **Xử lý xung đột**: Chọn thay thế hoặc giữ cả hai
 
-### Chuyển đổi điểm số sang GPA 4.0
-- **A (4.0)**: 8.5 - 10.0 điểm
-- **B+ (3.5)**: 8.0 - 8.4 điểm  
-- **B (3.0)**: 7.0 - 7.9 điểm
-- **C+ (2.5)**: 6.5 - 6.9 điểm
-- **C (2.0)**: 5.5 - 6.4 điểm
-- **D+ (1.5)**: 5.0 - 5.4 điểm
-- **D (1.0)**: 4.0 - 4.9 điểm
-- **F (0.0)**: 0.0 - 3.9 điểm
+### 📊 Export dữ liệu
 
-### Xếp loại học lực
-- **Xuất sắc**: GPA ≥ 3.6
-- **Giỏi**: GPA 3.2 - 3.59
-- **Khá**: GPA 2.5 - 3.19  
-- **Trung bình**: GPA 2.0 - 2.49
-- **Yếu**: GPA 1.0 - 1.99
-- **Kém**: GPA < 1.0
+| Tính năng             | Mô tả            | File output                      |
+| --------------------- | ---------------- | -------------------------------- |
+| **📊 Xuất Excel**     | Bảng điểm đầy đủ | `BangDiem_[Tên]_[Ngày].xlsx`     |
+| **📅 Xuất TKB Excel** | Thời khóa biểu   | `ThoiKhoaBieu_[Tên]_[Ngày].xlsx` |
+| **📥 Xuất JSON**      | Backup dữ liệu   | `gpa-data-[Ngày].json`           |
 
-## 🔮 Tính năng tương lai
+## 🏗️ Cấu trúc dự án
 
-- [ ] So sánh GPA với bạn bè (ẩn danh)
-- [ ] Biểu đồ tiến trình GPA theo thời gian
-- [ ] Dự đoán GPA tốt nghiệp
-- [ ] Export PDF báo cáo đẹp
-- [ ] Tích hợp lịch học và deadline
-- [ ] Thông báo nhắc nhở mục tiêu
-- [ ] Chia sẻ thành tích lên mạng xã hội
+```
+simulate-gpa/
+├── app/                    # Next.js App Router
+│   ├── globals.css        # Global styles
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Homepage
+├── components/            # React components
+│   ├── BackupModal.tsx    # Quản lý backup
+│   ├── GPASettingsModal.tsx # Cấu hình thang đo
+│   ├── ScheduleModal.tsx  # Thời khóa biểu
+│   └── SimulationModal.tsx # Mô phỏng kết quả
+├── types/                 # TypeScript types
+│   └── index.ts          # Định nghĩa interfaces
+├── utils/                 # Utility functions
+│   ├── gpa.ts            # Logic tính GPA
+│   └── storage.ts        # Quản lý dữ liệu
+├── public/               # Static assets
+├── package.json          # Dependencies
+├── tailwind.config.js    # Tailwind CSS config
+├── tsconfig.json         # TypeScript config
+└── next.config.js        # Next.js config
+```
+
+## 🔧 API và Types
+
+### Core Types
+
+```typescript
+interface StudentRecord {
+  id: string;
+  studentName: string;
+  semesters: Semester[];
+  gpaSettings: GPASettings;
+  cumulativeGPA: number;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+  credits: number;
+  grade: number | null;
+  schedule?: ClassSchedule[];
+}
+
+interface ClassSchedule {
+  id: string;
+  dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  startTime: string;
+  endTime: string;
+  room: string;
+  type: "lecture" | "lab" | "tutorial" | "exam";
+  instructor?: string;
+  note?: string;
+}
+```
+
+### Utility Functions
+
+```typescript
+// Tính GPA học kỳ
+calculateSemesterGPA(subjects: Subject[], settings: GPASettings): number
+
+// Tính GPA tích lũy
+calculateCumulativeGPA(semesters: Semester[], settings: GPASettings): number
+
+// Xuất Excel
+exportSimpleExcel(data: StudentRecord): void
+exportScheduleToExcel(data: StudentRecord, semesterIndex?: number): void
+
+// Quản lý storage
+saveDataWithBackup(data: StudentRecord): void
+restoreFromBackup(): StudentRecord[]
+```
+
+## 🧪 Testing
+
+### Manual Testing Checklist
+
+- [ ] Thêm/sửa/xóa môn học
+- [ ] Tính toán GPA với các thang đo khác nhau
+- [ ] Import/Export Excel và JSON
+- [ ] Quản lý thời khóa biểu
+- [ ] Phát hiện và xử lý xung đột lịch
+- [ ] Backup và restore dữ liệu
+- [ ] Responsive trên mobile/tablet
+
+### Browser Support
+
+- ✅ Chrome 90+
+- ✅ Firefox 88+
+- ✅ Safari 14+
+- ✅ Edge 90+
 
 ## 🤝 Đóng góp
 
-Mọi đóng góp đều được hoan nghênh! Hãy:
+### Quy trình đóng góp
 
-1. Fork repository
-2. Tạo branch mới: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Tạo Pull Request
+1. **Fork** repository
+2. **Clone** về máy local
+3. Tạo **feature branch**: `git checkout -b feature/amazing-feature`
+4. **Commit** thay đổi: `git commit -m 'Add amazing feature'`
+5. **Push** branch: `git push origin feature/amazing-feature`
+6. Tạo **Pull Request**
 
-## 📝 License
+### Coding Standards
 
-Dự án này được phân phối dưới MIT License. Xem file `LICENSE` để biết thêm chi tiết.
+- **TypeScript**: Sử dụng strict mode
+- **ESLint**: Follow Next.js config
+- **Prettier**: Format code tự động
+- **Comments**: Tiếng Việt cho logic phức tạp
 
-## 💡 Ý tưởng và feedback
+## 📝 Changelog
 
-Có ý tưởng hay gặp bug? Hãy tạo issue trên GitHub!
+### v2.0.0 (Latest)
+
+- ✨ **Thời khóa biểu hoàn chỉnh** với Grid/List view
+- ✨ **Custom time input** cho lịch học linh hoạt
+- ✨ **Conflict detection** và auto-replace
+- ✨ **5 cách xóa lịch** từ riêng lẻ đến hàng loạt
+- ✨ **Export Excel** cho thời khóa biểu
+- 🔧 **6 thang đo GPA** tùy chỉnh
+- 🔧 **Backup system** với 5 restore points
+
+### v1.0.0
+
+- 🎉 **Release đầu tiên** với core GPA features
+- 📊 **Basic Excel export**
+- 💾 **localStorage integration**
+- 🎯 **Simulation modal**
+
+## 🙏 Acknowledgments
+
+- **Next.js team** - Amazing React framework
+- **Tailwind CSS** - Utility-first CSS framework
+- **XLSX library** - Excel file processing
+- **Vercel** - Hosting và deployment platform
+
+## 📞 Liên hệ và Hỗ trợ
+
+- **📧 Email**: support@simulate-gpa.com
+- **🐛 Bug Reports**: [GitHub Issues](https://github.com/yourusername/simulate-gpa/issues)
+- **💡 Feature Requests**: [GitHub Discussions](https://github.com/yourusername/simulate-gpa/discussions)
+- **📚 Documentation**: [Wiki](https://github.com/yourusername/simulate-gpa/wiki)
 
 ---
 
-**🎓 Chúc bạn học tập thành công và đạt GPA cao!**
+<div align="center">
+
+**⭐ Nếu dự án hữu ích, hãy cho chúng tôi một Star! ⭐**
+
+Made with ❤️ by Vietnamese Developers
+
+[🚀 Live Demo](https://simulate-gpa.vercel.app) | [📖 Documentation](https://github.com/yourusername/simulate-gpa/wiki) | [🐛 Report Bug](https://github.com/yourusername/simulate-gpa/issues)
+
+</div>
