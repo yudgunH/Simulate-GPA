@@ -1,6 +1,6 @@
 import { StudentRecord, Semester, Subject } from '@/types';
 import * as XLSX from 'xlsx';
-import { calculateSemesterGPA, calculateCumulativeGPA, getLetterGrade, getAcademicLevel, convertGradeToGPA } from './gpa';
+import { calculateSemesterGPA, calculateCumulativeGPA, getLetterGrade, getAcademicLevel, convertGradeToGPA, DEFAULT_GPA_SETTINGS } from './gpa';
 
 const STORAGE_KEY = 'simulate-gpa-data';
 
@@ -24,6 +24,12 @@ export function loadData(): StudentRecord | null {
       if (!parsed.id || !parsed.semesters || !Array.isArray(parsed.semesters)) {
         console.warn('⚠️ Dữ liệu trong localStorage không hợp lệ, thử khôi phục từ backup');
         return tryRestoreFromBackup();
+      }
+      
+      // Migration: Thêm gpaSettings nếu chưa có
+      if (!parsed.gpaSettings) {
+        parsed.gpaSettings = DEFAULT_GPA_SETTINGS;
+        console.log('🔄 Đã migrate dữ liệu cũ: thêm gpaSettings mặc định');
       }
       
       console.log('✅ Đã tải dữ liệu từ localStorage thành công');
@@ -79,6 +85,7 @@ export function createDefaultData(): StudentRecord {
     cumulativeGPA: 0,
     totalCredits: 0,
     completedCredits: 0,
+    gpaSettings: DEFAULT_GPA_SETTINGS, // Thêm cấu hình thang đo mặc định
   };
 }
 
@@ -119,6 +126,294 @@ export function importData(file: File): Promise<StudentRecord> {
   });
 }
 
+// Import dữ liệu từ file Excel
+export function importFromExcel(file: File): Promise<StudentRecord> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const result = e.target?.result;
+        const workbook = XLSX.read(result, { type: 'binary' });
+        
+        console.log('🔍 Debug: Đang phân tích file Excel...');
+        console.log('Tên các sheet:', workbook.SheetNames);
+        
+        // Tìm sheet chứa dữ liệu môn học
+        let dataSheet = null;
+        let sheetName = '';
+        
+        // Ưu tiên tìm sheet "Chi tiết tất cả môn" hoặc "Tất cả các môn" (tên chính xác từ export)
+        const prioritySheets = ['Chi tiết tất cả môn', 'Tất cả các môn', 'Tất cả môn', 'Danh sách môn'];
+        for (const sheet of prioritySheets) {
+          if (workbook.SheetNames.includes(sheet)) {
+            dataSheet = workbook.Sheets[sheet];
+            sheetName = sheet;
+            break;
+          }
+        }
+        
+        // Nếu không tìm thấy, sử dụng sheet đầu tiên
+        if (!dataSheet && workbook.SheetNames.length > 0) {
+          sheetName = workbook.SheetNames[0];
+          dataSheet = workbook.Sheets[sheetName];
+        }
+        
+        if (!dataSheet) {
+          throw new Error('Không tìm thấy sheet dữ liệu trong file Excel');
+        }
+        
+        console.log('📋 Sheet được chọn:', sheetName);
+        
+        // Chuyển đổi sheet thành mảng
+        const jsonData = XLSX.utils.sheet_to_json(dataSheet, { header: 1 }) as any[][];
+        
+        console.log('📊 Tổng số dòng:', jsonData.length);
+        console.log('5 dòng đầu:', jsonData.slice(0, 5));
+        
+        if (jsonData.length < 3) {
+          throw new Error('File Excel không có đủ dữ liệu');
+        }
+        
+        // Tìm hàng header (dòng chứa "Tên môn học" hoặc các cột quan trọng)
+        let headerRowIndex = -1;
+        let nameColIndex = -1;
+        let creditsColIndex = -1;
+        let gradeColIndex = -1;
+        let semesterColIndex = -1;
+        
+        console.log('🔎 Đang tìm header...');
+        
+        for (let i = 0; i < Math.min(15, jsonData.length); i++) {
+          const row = jsonData[i];
+          if (Array.isArray(row) && row.length > 0) {
+            console.log(`Dòng ${i}:`, row);
+            
+            for (let j = 0; j < row.length; j++) {
+              const cell = String(row[j] || '').toLowerCase().trim();
+              
+              // Tìm cột tên môn học (khớp chính xác với export)
+              if (cell === 'tên môn học' || cell.includes('tên môn') || cell.includes('môn học')) {
+                headerRowIndex = i;
+                nameColIndex = j;
+                console.log(`✅ Tìm thấy cột tên môn tại dòng ${i}, cột ${j}: "${row[j]}"`);
+              } 
+              // Tìm cột tín chỉ
+              else if (cell === 'tín chỉ' || cell.includes('tín chỉ') || cell.includes('credits') || cell === 'tc') {
+                creditsColIndex = j;
+                console.log(`✅ Tìm thấy cột tín chỉ tại cột ${j}: "${row[j]}"`);
+              } 
+              // Tìm cột điểm (linh hoạt hơn)
+              else if (
+                cell === 'điểm số' || 
+                cell === 'điểm tổng' || 
+                cell === 'điểm' ||
+                (cell.includes('điểm') && 
+                 !cell.includes('chữ') && 
+                 !cell.includes('×') && 
+                 !cell.includes('chuyên cần') && 
+                 !cell.includes('quá trình') && 
+                 !cell.includes('giữa kỳ') && 
+                 !cell.includes('cuối kỳ') &&
+                 !cell.includes('gpa'))
+              ) {
+                gradeColIndex = j;
+                console.log(`✅ Tìm thấy cột điểm tại cột ${j}: "${row[j]}"`);
+              } 
+              // Tìm cột học kỳ
+              else if (cell === 'học kỳ' || cell.includes('học kỳ') || cell.includes('semester') || cell === 'hk') {
+                semesterColIndex = j;
+                console.log(`✅ Tìm thấy cột học kỳ tại cột ${j}: "${row[j]}"`);
+              }
+            }
+            if (headerRowIndex !== -1) break;
+          }
+        }
+        
+        if (headerRowIndex === -1 || nameColIndex === -1) {
+          console.log('❌ Không tìm thấy header phù hợp');
+          console.log('Debug thông tin:', {
+            headerRowIndex,
+            nameColIndex,
+            sheetsAvailable: workbook.SheetNames,
+            selectedSheet: sheetName,
+            first10Rows: jsonData.slice(0, 10)
+          });
+          throw new Error('Không tìm thấy cột "Tên môn học" trong file Excel. Vui lòng kiểm tra định dạng file.');
+        }
+        
+        console.log('✅ Phát hiện cấu trúc Excel:', {
+          sheet: sheetName,
+          headerRow: headerRowIndex,
+          columns: {
+            name: nameColIndex,
+            credits: creditsColIndex, 
+            grade: gradeColIndex,
+            semester: semesterColIndex
+          }
+        });
+        
+        // Tự động tìm các cột nếu chưa được xác định
+        if (creditsColIndex === -1 || gradeColIndex === -1) {
+          const headerRow = jsonData[headerRowIndex];
+          console.log('🔍 Tìm thêm cột từ header row:', headerRow);
+          
+          for (let j = 0; j < headerRow.length; j++) {
+            const cell = String(headerRow[j] || '').toLowerCase().trim();
+            if (creditsColIndex === -1 && (cell === 'tín chỉ' || cell.includes('tín chỉ') || cell.includes('credits') || cell === 'tc')) {
+              creditsColIndex = j;
+              console.log(`✅ Tìm thêm cột tín chỉ tại ${j}: "${headerRow[j]}"`);
+            }
+            if (gradeColIndex === -1 && (
+              cell === 'điểm số' || 
+              cell === 'điểm tổng' || 
+              cell === 'điểm' ||
+              (cell.includes('điểm') && 
+               !cell.includes('chữ') && 
+               !cell.includes('×') && 
+               !cell.includes('chuyên cần') && 
+               !cell.includes('quá trình') && 
+               !cell.includes('giữa kỳ') && 
+               !cell.includes('cuối kỳ') &&
+               !cell.includes('gpa'))
+            )) {
+              gradeColIndex = j;
+              console.log(`✅ Tìm thêm cột điểm tại ${j}: "${headerRow[j]}"`);
+            }
+          }
+        }
+        
+        // Tạo dữ liệu sinh viên mới
+        const studentData: StudentRecord = {
+          id: generateId(),
+          studentName: 'Sinh viên (Import từ Excel)',
+          semesters: [],
+          cumulativeGPA: 0,
+          totalCredits: 0,
+          completedCredits: 0,
+        };
+        
+        // Nhóm môn học theo học kỳ
+        const semesterMap = new Map<string, Subject[]>();
+        
+        // Đọc dữ liệu từ các hàng
+        console.log('📖 Bắt đầu đọc dữ liệu từ dòng', headerRowIndex + 1);
+        let validSubjectsCount = 0;
+        
+        for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          if (!Array.isArray(row) || row.length === 0) continue;
+          
+          const subjectName = String(row[nameColIndex] || '').trim();
+          
+          // Bỏ qua dòng trống, STT, hoặc dòng header
+          if (!subjectName || 
+              subjectName.length === 0 || 
+              subjectName === 'STT' || 
+              /^\d+$/.test(subjectName) ||
+              subjectName.toLowerCase().includes('danh sách') ||
+              subjectName.toLowerCase().includes('thống kê') ||
+              subjectName.toLowerCase().includes('báo cáo')) {
+            continue;
+          }
+          
+          console.log(`Dòng ${i}: Xử lý môn "${subjectName}"`);
+          
+          // Lấy học kỳ
+          let semesterName = 'Học kỳ Import';
+          if (semesterColIndex !== -1 && row[semesterColIndex]) {
+            semesterName = String(row[semesterColIndex]).trim();
+          }
+          
+          // Lấy tín chỉ
+          let credits = 3; // Mặc định 3 tín chỉ
+          if (creditsColIndex !== -1 && row[creditsColIndex]) {
+            const creditsValue = row[creditsColIndex];
+            if (typeof creditsValue === 'number') {
+              credits = creditsValue;
+            } else if (typeof creditsValue === 'string') {
+              const parsed = parseInt(creditsValue);
+              if (!isNaN(parsed) && parsed > 0) {
+                credits = parsed;
+              }
+            }
+          }
+          
+          // Lấy điểm
+          let grade: number | null = null;
+          if (gradeColIndex !== -1 && row[gradeColIndex]) {
+            const gradeValue = row[gradeColIndex];
+            if (typeof gradeValue === 'number') {
+              grade = gradeValue;
+            } else if (typeof gradeValue === 'string') {
+              const parsed = parseFloat(gradeValue);
+              if (!isNaN(parsed) && parsed >= 0 && parsed <= 10) {
+                grade = parsed;
+              }
+            }
+          }
+          
+          // Tạo môn học
+          const subject: Subject = {
+            id: generateId(),
+            name: subjectName,
+            credits: credits,
+            grade: grade,
+          };
+          
+          console.log(`✅ Thêm môn: ${subjectName} (${credits} TC, điểm: ${grade}) vào ${semesterName}`);
+          
+          // Thêm vào semester map
+          if (!semesterMap.has(semesterName)) {
+            semesterMap.set(semesterName, []);
+          }
+          semesterMap.get(semesterName)!.push(subject);
+          validSubjectsCount++;
+        }
+        
+        console.log(`📊 Đã đọc được ${validSubjectsCount} môn học hợp lệ`);
+        console.log('Danh sách học kỳ:', Array.from(semesterMap.keys()));
+        
+        // Tạo các semester từ map
+        let semesterIndex = 1;
+        for (const [semesterName, subjects] of Array.from(semesterMap.entries())) {
+          const semester: Semester = {
+            id: generateId(),
+            name: semesterName || `Học kỳ ${semesterIndex}`,
+            subjects: subjects,
+            gpa: calculateSemesterGPA(subjects),
+          };
+          studentData.semesters.push(semester);
+          console.log(`📚 Tạo học kỳ: ${semester.name} với ${subjects.length} môn`);
+          semesterIndex++;
+        }
+        
+        // Nếu không có semester nào, tạo một semester mặc định
+        if (studentData.semesters.length === 0) {
+          console.log('❌ Không có dữ liệu môn học hợp lệ');
+          throw new Error('Không tìm thấy dữ liệu môn học nào trong file Excel. Vui lòng kiểm tra lại file và đảm bảo có cột "Tên môn học".');
+        }
+        
+        // Tính toán GPA tích lũy
+        studentData.cumulativeGPA = calculateCumulativeGPA(studentData.semesters);
+        
+        console.log('🎉 Import Excel thành công:', {
+          semesters: studentData.semesters.length,
+          totalSubjects: studentData.semesters.reduce((sum, sem) => sum + sem.subjects.length, 0),
+          cumulativeGPA: studentData.cumulativeGPA.toFixed(3)
+        });
+        
+        resolve(studentData);
+      } catch (error) {
+        console.error('❌ Lỗi import Excel:', error);
+        reject(new Error('Lỗi khi đọc file Excel: ' + (error as Error).message));
+      }
+    };
+    
+    reader.onerror = () => reject(new Error('Lỗi khi đọc file Excel'));
+    reader.readAsBinaryString(file);
+  });
+}
+
 // Clear all data
 export function clearData(): void {
   try {
@@ -131,6 +426,81 @@ export function clearData(): void {
 // Generate unique ID
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// Tạo file Excel mẫu để test import
+export function createSampleExcel(): void {
+  const workbook = XLSX.utils.book_new();
+  
+  // Tạo data mẫu đơn giản
+  const sampleData = [
+    ['📋 FILE EXCEL MẪU ĐỂ TEST IMPORT', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['STT', 'Tên môn học', 'Tín chỉ', 'Điểm số', 'Học kỳ'],
+    [1, 'Toán cao cấp A1', 3, 8.5, 'Học kỳ 1'],
+    [2, 'Vật lý đại cương', 4, 7.8, 'Học kỳ 1'],
+    [3, 'Hóa học đại cương', 3, 8.2, 'Học kỳ 1'],
+    [4, 'Lập trình C++', 4, 9.0, 'Học kỳ 2'],
+    [5, 'Cấu trúc dữ liệu', 3, 8.7, 'Học kỳ 2'],
+    [6, 'Cơ sở dữ liệu', 3, 8.9, 'Học kỳ 2'],
+  ];
+  
+  const sheet = XLSX.utils.aoa_to_sheet(sampleData);
+  sheet['!cols'] = [
+    { wch: 5 },   // STT
+    { wch: 25 },  // Tên môn học
+    { wch: 8 },   // Tín chỉ
+    { wch: 10 },  // Điểm số
+    { wch: 15 },  // Học kỳ
+  ];
+  
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Danh sách môn');
+  
+  // Xuất file
+  XLSX.writeFile(workbook, 'sample-import.xlsx');
+  console.log('✅ Đã tạo file sample-import.xlsx để test import');
+}
+
+// Export dữ liệu ra file Excel đơn giản để dễ import
+export function exportSimpleExcel(data: StudentRecord): void {
+  const workbook = XLSX.utils.book_new();
+  
+  // Tạo data giống hệt file mẫu
+  const simpleData = [
+    ['📋 BẢNG ĐIỂM SINH VIÊN', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['STT', 'Tên môn học', 'Tín chỉ', 'Điểm số', 'Học kỳ'],
+  ];
+  
+  let stt = 1;
+  data.semesters.forEach((semester) => {
+    semester.subjects.forEach((subject) => {
+      simpleData.push([
+        stt.toString(),
+        subject.name,
+        subject.credits.toString(),
+        subject.grade !== null ? subject.grade.toFixed(1) : '',
+        semester.name
+      ]);
+      stt++;
+    });
+  });
+  
+  const sheet = XLSX.utils.aoa_to_sheet(simpleData);
+  sheet['!cols'] = [
+    { wch: 5 },   // STT
+    { wch: 35 },  // Tên môn học
+    { wch: 8 },   // Tín chỉ
+    { wch: 10 },  // Điểm số
+    { wch: 15 },  // Học kỳ
+  ];
+  
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Danh sách môn');
+  
+  // Xuất file
+  const fileName = `bangdiem-simple-${data.studentName.replace(/\s+/g, '_')}-${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
+  console.log('✅ Đã xuất file Excel đơn giản:', fileName);
 }
 
 // Export dữ liệu ra file Excel với thông tin đầy đủ
@@ -157,68 +527,28 @@ export function exportToExcel(data: StudentRecord): void {
     ['Tổng tín chỉ tích lũy:', data.semesters.reduce((total, sem) => 
       total + sem.subjects.reduce((semTotal, sub) => 
         sub.grade !== null ? semTotal + sub.credits : semTotal, 0), 0).toString(), '', '', '', '', ''],
-    ['', '', '', '', '', '', ''],
-    ['🎯 PHÂN TÍCH ĐIỂM SỐ:', '', '', '', '', '', ''],
   ];
-  
-  // Thống kê phân bố điểm theo grade
-  const gradeStats: { [key: string]: number } = {};
-  const allGradedSubjects = data.semesters.flatMap(sem => 
-    sem.subjects.filter(sub => sub.grade !== null)
-  );
-  
-  allGradedSubjects.forEach(subject => {
-    if (subject.grade !== null) {
-      const letterGrade = getLetterGrade(subject.grade);
-      gradeStats[letterGrade] = (gradeStats[letterGrade] || 0) + 1;
-    }
-  });
-  
-  Object.entries(gradeStats).forEach(([grade, count]) => {
-    summaryData.push([`Số môn đạt ${grade}:`, count.toString(), 
-      `(${((count / allGradedSubjects.length) * 100).toFixed(1)}%)`, '', '', '', '']);
-  });
-  
-  // Điểm cao nhất và thấp nhất
-  const allGrades = allGradedSubjects.map(s => s.grade!);
-  if (allGrades.length > 0) {
-    summaryData.push(['', '', '', '', '', '', '']);
-    summaryData.push(['Điểm cao nhất:', Math.max(...allGrades).toFixed(1), '', '', '', '', '']);
-    summaryData.push(['Điểm thấp nhất:', Math.min(...allGrades).toFixed(1), '', '', '', '', '']);
-    summaryData.push(['Điểm trung bình:', (allGrades.reduce((a, b) => a + b, 0) / allGrades.length).toFixed(1), '', '', '', '', '']);
-  }
   
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
   summarySheet['!cols'] = Array(7).fill({ wch: 20 });
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Tổng quan');
   
-  // 2. SHEET TẤT CẢ CÁC MÔN - Danh sách đầy đủ
+  // 2. SHEET DANH SÁCH MÔN - Định dạng đơn giản như file mẫu
   const allSubjectsData = [
-    ['📋 DANH SÁCH TẤT CẢ CÁC MÔN HỌC', '', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', '', ''],
-    ['STT', 'Học kỳ', 'Tên môn học', 'Tín chỉ', 'Điểm số', 'Điểm chữ', 'GPA Point', 'Điểm × Tín chỉ', 'Trạng thái'],
+    ['📋 DANH SÁCH TẤT CẢ CÁC MÔN HỌC', '', '', '', ''],
+    ['', '', '', '', ''],
+    ['STT', 'Tên môn học', 'Tín chỉ', 'Điểm số', 'Học kỳ'],
   ];
   
   let stt = 1;
   data.semesters.forEach((semester) => {
     semester.subjects.forEach((subject) => {
-      const grade = subject.grade;
-      const letterGrade = grade !== null ? getLetterGrade(grade) : 'Chưa có điểm';
-      const gpaPoint = grade !== null ? convertGradeToGPA(grade).toFixed(1) : '0.0';
-      const weightedPoints = grade !== null ? (grade * subject.credits).toFixed(1) : '0.0';
-      const status = grade !== null ? 
-        (grade >= 5.0 ? '✅ Đạt' : '❌ Không đạt') : '⏳ Chưa có điểm';
-      
       allSubjectsData.push([
         stt.toString(),
-        semester.name,
         subject.name,
         subject.credits.toString(),
-        grade !== null ? grade.toFixed(1) : '',
-        letterGrade,
-        gpaPoint,
-        weightedPoints,
-        status
+        subject.grade !== null ? subject.grade.toFixed(1) : '',
+        semester.name
       ]);
       stt++;
     });
@@ -227,475 +557,18 @@ export function exportToExcel(data: StudentRecord): void {
   const allSubjectsSheet = XLSX.utils.aoa_to_sheet(allSubjectsData);
   allSubjectsSheet['!cols'] = [
     { wch: 5 },   // STT
-    { wch: 15 },  // Học kỳ
-    { wch: 30 },  // Tên môn
+    { wch: 35 },  // Tên môn học
     { wch: 8 },   // Tín chỉ
     { wch: 10 },  // Điểm số
-    { wch: 10 },  // Điểm chữ
-    { wch: 10 },  // GPA Point
-    { wch: 12 },  // Điểm × Tín chỉ
-    { wch: 15 },  // Trạng thái
+    { wch: 15 },  // Học kỳ
   ];
-  XLSX.utils.book_append_sheet(workbook, allSubjectsSheet, 'Tất cả các môn');
+  XLSX.utils.book_append_sheet(workbook, allSubjectsSheet, 'Danh sách môn');
   
-  // 3. SHEET CHO TỪNG HỌC KỲ - Chi tiết từng học kỳ
-  data.semesters.forEach((semester, index) => {
-    const semesterData = [
-      [`📚 ${semester.name.toUpperCase()}`, '', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', '', ''],
-      ['STT', 'Tên môn học', 'Tín chỉ', 'Điểm số', 'Điểm chữ', 'GPA Point', 'Điểm × Tín chỉ', 'Ghi chú'],
-    ];
-    
-    semester.subjects.forEach((subject, idx) => {
-      const grade = subject.grade;
-      const letterGrade = grade !== null ? getLetterGrade(grade) : '';
-      const gpaPoint = grade !== null ? convertGradeToGPA(grade).toFixed(1) : '';
-      const weightedPoints = grade !== null ? (grade * subject.credits).toFixed(1) : '';
-      const note = grade !== null ? 
-        (grade >= 8.5 ? '🏆 Xuất sắc' : 
-         grade >= 7.0 ? '👍 Tốt' : 
-         grade >= 5.5 ? '📚 Khá' : 
-         grade >= 4.0 ? '⚠️ Yếu' : '❌ Kém') : 'Chưa có điểm';
-      
-      semesterData.push([
-        (idx + 1).toString(),
-        subject.name,
-        subject.credits.toString(),
-        grade !== null ? grade.toFixed(1) : '',
-        letterGrade,
-        gpaPoint,
-        weightedPoints,
-        note
-      ]);
-    });
-    
-    // Thống kê học kỳ
-    const semesterGPA = calculateSemesterGPA(semester.subjects);
-    const completedSubjects = semester.subjects.filter(s => s.grade !== null);
-    const totalCredits = completedSubjects.reduce((total, sub) => total + sub.credits, 0);
-    const totalWeightedGrades = completedSubjects.reduce((total, sub) => 
-      total + (sub.grade! * sub.credits), 0);
-    const averageGrade = totalCredits > 0 ? totalWeightedGrades / totalCredits : 0;
-    
-    semesterData.push(['', '', '', '', '', '', '', '']);
-    semesterData.push(['THỐNG KÊ HỌC KỲ:', '', '', '', '', '', '', '']);
-    semesterData.push(['Số môn đã hoàn thành:', completedSubjects.length.toString(), '', '', '', '', '', '']);
-    semesterData.push(['Tổng tín chỉ:', totalCredits.toString(), '', '', '', '', '', '']);
-    semesterData.push(['Điểm trung bình (thang 10):', averageGrade.toFixed(2), '', '', '', '', '', '']);
-    semesterData.push(['GPA học kỳ (thang 4):', semesterGPA.toFixed(3), '', '', '', '', '', '']);
-    semesterData.push(['Xếp loại:', getAcademicLevel(semesterGPA).level, '', '', '', '', '', '']);
-    
-    const sheet = XLSX.utils.aoa_to_sheet(semesterData);
-    sheet['!cols'] = [
-      { wch: 5 },   // STT
-      { wch: 30 },  // Tên môn
-      { wch: 8 },   // Tín chỉ
-      { wch: 10 },  // Điểm số
-      { wch: 10 },  // Điểm chữ
-      { wch: 10 },  // GPA Point
-      { wch: 12 },  // Điểm × Tín chỉ
-      { wch: 15 },  // Ghi chú
-    ];
-    
-    XLSX.utils.book_append_sheet(workbook, sheet, `HK${index + 1}_${semester.name.substring(0, 10)}`);
-  });
-  
-  // 4. SHEET BÁO CÁO TIẾN ĐỘ - So sánh qua các học kỳ
-  const progressData = [
-    ['📈 BÁO CÁO TIẾN ĐỘ HỌC TẬP', '', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', '', ''],
-    ['Học kỳ', 'Số môn', 'Tín chỉ', 'Điểm TB', 'GPA HK', 'GPA tích lũy', 'Xếp loại', 'Xu hướng', 'Ghi chú'],
-  ];
-  
-  let prevCumulativeGPA = 0;
-  data.semesters.forEach((semester, index) => {
-    const semesterGPA = calculateSemesterGPA(semester.subjects);
-    const semesterCredits = semester.subjects.reduce((total, sub) => 
-      sub.grade !== null ? total + sub.credits : total, 0);
-    
-    // Tính GPA tích lũy đến học kỳ hiện tại
-    const semestersUpToNow = data.semesters.slice(0, index + 1);
-    const currentCumulativeGPA = calculateCumulativeGPA(semestersUpToNow);
-    const academicLevel = getAcademicLevel(currentCumulativeGPA);
-    
-    // Tính điểm trung bình thang 10
-    const completedSubjects = semester.subjects.filter(s => s.grade !== null);
-    const averageGrade = completedSubjects.length > 0 ? 
-      completedSubjects.reduce((total, sub) => total + (sub.grade! * sub.credits), 0) / 
-      completedSubjects.reduce((total, sub) => total + sub.credits, 0) : 0;
-    
-    // Xác định xu hướng
-    let trend = '🆕 Mới';
-    if (index > 0) {
-      if (currentCumulativeGPA > prevCumulativeGPA) {
-        trend = '📈 Tăng';
-      } else if (currentCumulativeGPA < prevCumulativeGPA) {
-        trend = '📉 Giảm';
-      } else {
-        trend = '➡️ Ổn định';
-      }
-    }
-    
-    // Ghi chú đặc biệt
-    let note = '';
-    if (semesterGPA >= 3.7) note = '🏆 Xuất sắc';
-    else if (semesterGPA >= 3.3) note = '🌟 Giỏi';
-    else if (semesterGPA >= 2.3) note = '👍 Khá';
-    else if (semesterGPA >= 2.0) note = '📚 Trung bình';
-    else if (semesterGPA >= 1.0) note = '⚠️ Yếu';
-    else note = '❌ Kém';
-    
-    progressData.push([
-      semester.name,
-      completedSubjects.length.toString(),
-      semesterCredits.toString(),
-      averageGrade.toFixed(2),
-      semesterGPA.toFixed(3),
-      currentCumulativeGPA.toFixed(3),
-      academicLevel.level,
-      trend,
-      note
-    ]);
-    
-    prevCumulativeGPA = currentCumulativeGPA;
-  });
-  
-  const progressSheet = XLSX.utils.aoa_to_sheet(progressData);
-  progressSheet['!cols'] = [
-    { wch: 15 }, // Học kỳ
-    { wch: 8 },  // Số môn
-    { wch: 8 },  // Tín chỉ
-    { wch: 10 }, // Điểm TB
-    { wch: 10 }, // GPA HK
-    { wch: 12 }, // GPA tích lũy
-    { wch: 12 }, // Xếp loại
-    { wch: 10 }, // Xu hướng
-    { wch: 15 }, // Ghi chú
-  ];
-  XLSX.utils.book_append_sheet(workbook, progressSheet, 'Tiến độ học tập');
-  
-  // 5. SHEET PHÂN TÍCH THỐNG KÊ
-  const statsData = [
-    ['📊 PHÂN TÍCH THỐNG KÊ CHI TIẾT', '', '', '', ''],
-    ['', '', '', '', ''],
-    ['THỐNG KÊ THEO ĐIỂM CHỮ:', '', '', '', ''],
-    ['Loại điểm', 'Số môn', 'Phần trăm', 'Tín chỉ', 'Ghi chú'],
-  ];
-  
-  // Thống kê chi tiết theo từng grade
-  const detailedGradeStats: { [key: string]: { count: number, credits: number } } = {};
-  allGradedSubjects.forEach(subject => {
-    if (subject.grade !== null) {
-      const letterGrade = getLetterGrade(subject.grade);
-      if (!detailedGradeStats[letterGrade]) {
-        detailedGradeStats[letterGrade] = { count: 0, credits: 0 };
-      }
-      detailedGradeStats[letterGrade].count++;
-      detailedGradeStats[letterGrade].credits += subject.credits;
-    }
-  });
-  
-  const gradeOrder = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F'];
-  gradeOrder.forEach(grade => {
-    if (detailedGradeStats[grade]) {
-      const stat = detailedGradeStats[grade];
-      const percentage = ((stat.count / allGradedSubjects.length) * 100).toFixed(1);
-      let note = '';
-      if (grade === 'A+' || grade === 'A') note = '🏆 Xuất sắc';
-      else if (grade === 'B+' || grade === 'B') note = '👍 Tốt';
-      else if (grade === 'C+' || grade === 'C') note = '📚 Khá';
-      else if (grade === 'D+' || grade === 'D') note = '⚠️ Đạt';
-      else note = '❌ Không đạt';
-      
-      statsData.push([grade, stat.count.toString(), `${percentage}%`, stat.credits.toString(), note]);
-    }
-  });
-  
-  // Thêm thống kê khác
-  statsData.push(['', '', '', '', '']);
-  statsData.push(['THỐNG KÊ KHÁC:', '', '', '', '']);
-  statsData.push(['Tỷ lệ đạt (≥5.0):', 
-    `${allGradedSubjects.filter(s => s.grade! >= 5.0).length}/${allGradedSubjects.length}`,
-    `${((allGradedSubjects.filter(s => s.grade! >= 5.0).length / allGradedSubjects.length) * 100).toFixed(1)}%`,
-    '', '']);
-  statsData.push(['Tỷ lệ giỏi (≥8.0):', 
-    `${allGradedSubjects.filter(s => s.grade! >= 8.0).length}/${allGradedSubjects.length}`,
-    `${((allGradedSubjects.filter(s => s.grade! >= 8.0).length / allGradedSubjects.length) * 100).toFixed(1)}%`,
-    '', '']);
-  
-  const statsSheet = XLSX.utils.aoa_to_sheet(statsData);
-  statsSheet['!cols'] = [
-    { wch: 15 }, // Loại điểm
-    { wch: 10 }, // Số môn
-    { wch: 12 }, // Phần trăm
-    { wch: 10 }, // Tín chỉ
-    { wch: 15 }, // Ghi chú
-  ];
-  XLSX.utils.book_append_sheet(workbook, statsSheet, 'Thống kê');
-  
-  // Xuất file với tên chi tiết
-  const fileName = `BangDiem_ChiTiet_${data.studentName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+  // Xuất file
+  const fileName = `BangDiem_${data.studentName}_${new Date().toISOString().split('T')[0]}.xlsx`;
   XLSX.writeFile(workbook, fileName);
   
   console.log('✅ Đã xuất file Excel với đầy đủ thông tin:', fileName);
-}
-
-// Export dữ liệu ra file Excel với thông tin siêu chi tiết
-export function exportDetailedExcel(data: StudentRecord): void {
-  const workbook = XLSX.utils.book_new();
-  const cumulativeGPA = calculateCumulativeGPA(data.semesters);
-  const academicLevel = getAcademicLevel(cumulativeGPA);
-  
-  // 1. SHEET CHI TIẾT TẤT CẢ CÁC MÔN - Thông tin đầy đủ nhất
-  const detailedSubjectsData = [
-    ['📚 DANH SÁCH CHI TIẾT TẤT CẢ CÁC MÔN HỌC', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-    [
-      'STT', 'Mã môn', 'Tên môn học', 'Tín chỉ', 'Học kỳ', 'Loại môn', 'Khoa/Bộ môn', 'Giảng viên',
-      'Lý thuyết (tiết)', 'Thực hành (tiết)', 'Giờ học/tuần', 'Độ khó', 'Độ quan trọng',
-      'Điểm chuyên cần', 'Điểm quá trình', 'Điểm giữa kỳ', 'Điểm cuối kỳ', 'Điểm tổng', 'Điểm chữ', 'Ghi chú'
-    ]
-  ];
-  
-  let stt = 1;
-  data.semesters.forEach((semester) => {
-    semester.subjects.forEach((subject) => {
-      const grade = subject.grade;
-      const letterGrade = grade !== null ? getLetterGrade(grade) : '';
-      
-      // Ánh xạ loại môn
-      const courseTypeMap = {
-        'required': 'Bắt buộc',
-        'elective': 'Tự chọn', 
-        'major': 'Chuyên ngành',
-        'general': 'Đại cương'
-      };
-      
-      // Hiển thị độ khó và quan trọng bằng sao
-      const getDifficultyStars = (level?: number) => level ? '⭐'.repeat(level) : '';
-      const getImportanceStars = (level?: number) => level ? '🔥'.repeat(level) : '';
-      
-      detailedSubjectsData.push([
-        stt.toString(),
-        subject.courseCode || '',
-        subject.name,
-        subject.credits.toString(),
-        subject.semester || semester.name,
-        subject.courseType ? courseTypeMap[subject.courseType] : '',
-        subject.department || '',
-        subject.instructor || '',
-        subject.theoryHours?.toString() || '',
-        subject.labHours?.toString() || '',
-        subject.studyTime?.toString() || '',
-        getDifficultyStars(subject.difficulty),
-        getImportanceStars(subject.importance),
-        subject.attendanceGrade?.toFixed(1) || '',
-        subject.processGrade?.toFixed(1) || '',
-        subject.midtermGrade?.toFixed(1) || '',
-        subject.finalGrade?.toFixed(1) || '',
-        grade?.toFixed(1) || '',
-        letterGrade,
-        subject.notes || ''
-      ]);
-      stt++;
-    });
-  });
-  
-  const detailedSheet = XLSX.utils.aoa_to_sheet(detailedSubjectsData);
-  detailedSheet['!cols'] = [
-    { wch: 5 },   // STT
-    { wch: 10 },  // Mã môn
-    { wch: 35 },  // Tên môn
-    { wch: 8 },   // Tín chỉ
-    { wch: 15 },  // Học kỳ
-    { wch: 12 },  // Loại môn
-    { wch: 15 },  // Khoa
-    { wch: 20 },  // Giảng viên
-    { wch: 12 },  // Lý thuyết
-    { wch: 12 },  // Thực hành
-    { wch: 12 },  // Giờ học
-    { wch: 8 },   // Độ khó
-    { wch: 12 },  // Độ quan trọng
-    { wch: 12 },  // Chuyên cần
-    { wch: 12 },  // Quá trình
-    { wch: 12 },  // Giữa kỳ
-    { wch: 12 },  // Cuối kỳ
-    { wch: 10 },  // Tổng
-    { wch: 10 },  // Chữ
-    { wch: 30 },  // Ghi chú
-  ];
-  XLSX.utils.book_append_sheet(workbook, detailedSheet, 'Chi tiết tất cả môn');
-  
-  // 2. SHEET PHÂN TÍCH THEO LOẠI MÔN
-  const courseTypeData = [
-    ['📊 PHÂN TÍCH THEO LOẠI MÔN HỌC', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', ''],
-    ['Loại môn', 'Số môn', 'Tín chỉ', 'Điểm TB', 'GPA TB', 'Tỷ lệ đạt', 'Ghi chú'],
-  ];
-  
-  const courseTypes = ['required', 'elective', 'major', 'general'] as const;
-  const typeNames = {
-    'required': 'Môn bắt buộc',
-    'elective': 'Môn tự chọn', 
-    'major': 'Môn chuyên ngành',
-    'general': 'Môn đại cương'
-  };
-  
-  courseTypes.forEach(type => {
-    const subjectsOfType = data.semesters.flatMap(sem => 
-      sem.subjects.filter(sub => sub.courseType === type && sub.grade !== null)
-    );
-    
-    if (subjectsOfType.length > 0) {
-      const totalCredits = subjectsOfType.reduce((sum, sub) => sum + sub.credits, 0);
-      const avgGrade = subjectsOfType.reduce((sum, sub) => sum + (sub.grade! * sub.credits), 0) / totalCredits;
-      const avgGPA = subjectsOfType.reduce((sum, sub) => sum + (convertGradeToGPA(sub.grade!) * sub.credits), 0) / totalCredits;
-      const passRate = (subjectsOfType.filter(sub => sub.grade! >= 5.0).length / subjectsOfType.length * 100).toFixed(1);
-      
-      courseTypeData.push([
-        typeNames[type],
-        subjectsOfType.length.toString(),
-        totalCredits.toString(),
-        avgGrade.toFixed(2),
-        avgGPA.toFixed(2),
-        `${passRate}%`,
-        avgGPA >= 3.5 ? '🏆 Xuất sắc' : avgGPA >= 3.0 ? '👍 Tốt' : '📚 Cần cố gắng'
-      ]);
-    }
-  });
-  
-  const courseTypeSheet = XLSX.utils.aoa_to_sheet(courseTypeData);
-  courseTypeSheet['!cols'] = Array(7).fill({ wch: 15 });
-  XLSX.utils.book_append_sheet(workbook, courseTypeSheet, 'Phân tích theo loại môn');
-  
-  // 3. SHEET PHÂN TÍCH THEO GIẢNG VIÊN
-  const instructorData = [
-    ['👨‍🏫 PHÂN TÍCH THEO GIẢNG VIÊN', '', '', '', '', ''],
-    ['', '', '', '', '', ''],
-    ['Giảng viên', 'Số môn', 'Điểm TB', 'GPA TB', 'Đánh giá', 'Ghi chú'],
-  ];
-  
-  const instructorStats: { [key: string]: Subject[] } = {};
-  data.semesters.forEach(sem => {
-    sem.subjects.forEach(sub => {
-      if (sub.instructor && sub.grade !== null) {
-        if (!instructorStats[sub.instructor]) {
-          instructorStats[sub.instructor] = [];
-        }
-        instructorStats[sub.instructor].push(sub);
-      }
-    });
-  });
-  
-  Object.entries(instructorStats).forEach(([instructor, subjects]) => {
-    const totalCredits = subjects.reduce((sum, sub) => sum + sub.credits, 0);
-    const avgGrade = subjects.reduce((sum, sub) => sum + (sub.grade! * sub.credits), 0) / totalCredits;
-    const avgGPA = subjects.reduce((sum, sub) => sum + (convertGradeToGPA(sub.grade!) * sub.credits), 0) / totalCredits;
-    
-    let evaluation = '';
-    if (avgGPA >= 3.5) evaluation = '🌟 Rất tốt';
-    else if (avgGPA >= 3.0) evaluation = '👍 Tốt';
-    else if (avgGPA >= 2.5) evaluation = '📚 Khá';
-    else evaluation = '⚠️ Trung bình';
-    
-    instructorData.push([
-      instructor,
-      subjects.length.toString(),
-      avgGrade.toFixed(2),
-      avgGPA.toFixed(2),
-      evaluation,
-      `${subjects.length} môn học`
-    ]);
-  });
-  
-  const instructorSheet = XLSX.utils.aoa_to_sheet(instructorData);
-  instructorSheet['!cols'] = Array(6).fill({ wch: 20 });
-  XLSX.utils.book_append_sheet(workbook, instructorSheet, 'Phân tích giảng viên');
-  
-  // 4. SHEET PHÂN TÍCH ĐỘ KHÓ VÀ QUAN TRỌNG
-  const difficultyData = [
-    ['⭐ PHÂN TÍCH ĐỘ KHÓ VÀ QUAN TRỌNG', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', ''],
-    ['Độ khó', 'Số môn', 'Điểm TB', 'GPA TB', 'Độ quan trọng TB', 'Kết quả', 'Ghi chú'],
-  ];
-  
-  for (let difficulty = 1; difficulty <= 5; difficulty++) {
-    const subjectsWithDifficulty = data.semesters.flatMap(sem => 
-      sem.subjects.filter(sub => sub.difficulty === difficulty && sub.grade !== null)
-    );
-    
-    if (subjectsWithDifficulty.length > 0) {
-      const totalCredits = subjectsWithDifficulty.reduce((sum, sub) => sum + sub.credits, 0);
-      const avgGrade = subjectsWithDifficulty.reduce((sum, sub) => sum + (sub.grade! * sub.credits), 0) / totalCredits;
-      const avgGPA = subjectsWithDifficulty.reduce((sum, sub) => sum + (convertGradeToGPA(sub.grade!) * sub.credits), 0) / totalCredits;
-      const avgImportance = subjectsWithDifficulty.reduce((sum, sub) => sum + (sub.importance || 0), 0) / subjectsWithDifficulty.length;
-      
-      difficultyData.push([
-        `${difficulty} ${'⭐'.repeat(difficulty)}`,
-        subjectsWithDifficulty.length.toString(),
-        avgGrade.toFixed(2),
-        avgGPA.toFixed(2),
-        avgImportance.toFixed(1),
-        avgGPA >= 3.0 ? '✅ Tốt' : '⚠️ Cần cải thiện',
-        difficulty >= 4 ? 'Môn khó' : difficulty <= 2 ? 'Môn dễ' : 'Môn trung bình'
-      ]);
-    }
-  }
-  
-  const difficultySheet = XLSX.utils.aoa_to_sheet(difficultyData);
-  difficultySheet['!cols'] = Array(7).fill({ wch: 15 });
-  XLSX.utils.book_append_sheet(workbook, difficultySheet, 'Phân tích độ khó');
-  
-  // 5. SHEET THỐNG KÊ ĐIỂM CHI TIẾT
-  const gradeBreakdownData = [
-    ['📋 THỐNG KÊ ĐIỂM CHI TIẾT', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', ''],
-    ['Loại điểm', 'Điểm TB', 'Điểm cao nhất', 'Điểm thấp nhất', 'Số môn có điểm', 'Tỷ lệ hoàn thành', 'Ảnh hưởng', 'Ghi chú'],
-  ];
-  
-  const gradeTypes = [
-    { key: 'attendanceGrade', name: 'Điểm chuyên cần', weight: '10%' },
-    { key: 'processGrade', name: 'Điểm quá trình', weight: '20%' },
-    { key: 'midtermGrade', name: 'Điểm giữa kỳ', weight: '30%' },
-    { key: 'finalGrade', name: 'Điểm cuối kỳ', weight: '40%' },
-    { key: 'grade', name: 'Điểm tổng kết', weight: '100%' }
-  ];
-  
-  gradeTypes.forEach(gradeType => {
-    const allSubjects = data.semesters.flatMap(sem => sem.subjects);
-    const subjectsWithGrade = allSubjects.filter(sub => 
-      (sub as any)[gradeType.key] !== null && (sub as any)[gradeType.key] !== undefined
-    );
-    
-    if (subjectsWithGrade.length > 0) {
-      const grades = subjectsWithGrade.map(sub => (sub as any)[gradeType.key] as number);
-      const avgGrade = grades.reduce((sum, grade) => sum + grade, 0) / grades.length;
-      const maxGrade = Math.max(...grades);
-      const minGrade = Math.min(...grades);
-      const completionRate = (subjectsWithGrade.length / allSubjects.length * 100).toFixed(1);
-      
-      gradeBreakdownData.push([
-        gradeType.name,
-        avgGrade.toFixed(2),
-        maxGrade.toFixed(1),
-        minGrade.toFixed(1),
-        subjectsWithGrade.length.toString(),
-        `${completionRate}%`,
-        gradeType.weight,
-        avgGrade >= 8.0 ? '🏆 Xuất sắc' : avgGrade >= 7.0 ? '👍 Tốt' : '📚 Cần cố gắng'
-      ]);
-    }
-  });
-  
-  const gradeBreakdownSheet = XLSX.utils.aoa_to_sheet(gradeBreakdownData);
-  gradeBreakdownSheet['!cols'] = Array(8).fill({ wch: 15 });
-  XLSX.utils.book_append_sheet(workbook, gradeBreakdownSheet, 'Thống kê điểm chi tiết');
-  
-  // Gọi hàm xuất Excel cũ để có đầy đủ các sheet khác
-  const fileName = `BangDiem_SieuChiTiet_${data.studentName}_${new Date().toISOString().split('T')[0]}.xlsx`;
-  XLSX.writeFile(workbook, fileName);
-  
-  console.log('✅ Đã xuất file Excel siêu chi tiết:', fileName);
 }
 
 // Cải thiện chức năng lưu trữ localStorage với backup

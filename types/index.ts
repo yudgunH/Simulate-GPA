@@ -35,15 +35,6 @@ export interface Semester {
   gpa: number;
 }
 
-export interface StudentRecord {
-  id: string;
-  studentName: string;
-  semesters: Semester[];
-  cumulativeGPA: number;
-  totalCredits: number;
-  completedCredits: number;
-}
-
 export interface GPAScale {
   A_PLUS: number;
   A: number;
@@ -54,6 +45,22 @@ export interface GPAScale {
   D_PLUS: number;
   D: number;
   F: number;
+}
+
+export interface GPASettings {
+  scale: GPAScale;
+  gradeRanges: {
+    A_PLUS: { min: number; max: number };
+    A: { min: number; max: number };
+    B_PLUS: { min: number; max: number };
+    B: { min: number; max: number };
+    C_PLUS: { min: number; max: number };
+    C: { min: number; max: number };
+    D_PLUS: { min: number; max: number };
+    D: { min: number; max: number };
+    F: { min: number; max: number };
+  };
+  maxGPA: number; // Thang điểm tối đa (4.0, 4.3, etc.)
 }
 
 export interface AcademicLevel {
@@ -67,4 +74,14 @@ export interface ScholarshipRequirement {
   name: string;
   minGPA: number;
   description: string;
+}
+
+export interface StudentRecord {
+  id: string;
+  studentName: string;
+  semesters: Semester[];
+  cumulativeGPA: number;
+  totalCredits: number;
+  completedCredits: number;
+  gpaSettings?: GPASettings; // Cấu hình thang đo tùy chỉnh
 } 

@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Subject, Semester, StudentRecord } from '@/types';
+import { Subject, Semester, StudentRecord, GPASettings } from '@/types';
 import { 
   calculateSemesterGPA, 
   calculateCumulativeGPA, 
   getAcademicLevel, 
-  SCHOLARSHIPS,
-  getImprovementSuggestions 
+  getScholarships,
+  getImprovementSuggestions,
+  DEFAULT_GPA_SETTINGS 
 } from '@/utils/gpa';
 import { 
   saveData, 
@@ -15,20 +16,22 @@ import {
   createDefaultData, 
   exportData, 
   importData, 
+  importFromExcel,
   generateId,
-  exportToExcel,
-  exportDetailedExcel,
+  exportSimpleExcel,
   saveDataWithBackup,
   getStorageStats,
   restoreFromBackup
 } from '@/utils/storage';
 import SimulationModal from '@/components/SimulationModal';
+import GPASettingsModal from '@/components/GPASettingsModal';
 
 export default function HomePage() {
   const [studentData, setStudentData] = useState<StudentRecord>(createDefaultData());
   const [currentSemesterIndex, setCurrentSemesterIndex] = useState(0);
   const [showSimulation, setShowSimulation] = useState(false);
   const [showStorageInfo, setShowStorageInfo] = useState(false);
+  const [showGPASettings, setShowGPASettings] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [editingSemester, setEditingSemester] = useState<{id: string, name: string} | null>(null);
@@ -64,10 +67,12 @@ export default function HomePage() {
   }, [studentData, isLoaded]);
 
   const currentSemester = studentData.semesters[currentSemesterIndex];
-  const semesterGPA = calculateSemesterGPA(currentSemester.subjects);
-  const cumulativeGPA = calculateCumulativeGPA(studentData.semesters);
-  const academicLevel = getAcademicLevel(cumulativeGPA);
-  const suggestions = getImprovementSuggestions(cumulativeGPA, currentSemester.subjects);
+  const gpaSettings = studentData.gpaSettings || DEFAULT_GPA_SETTINGS;
+  const semesterGPA = calculateSemesterGPA(currentSemester.subjects, gpaSettings);
+  const cumulativeGPA = calculateCumulativeGPA(studentData.semesters, gpaSettings);
+  const academicLevel = getAcademicLevel(cumulativeGPA, gpaSettings);
+  const scholarships = getScholarships(gpaSettings);
+  const suggestions = getImprovementSuggestions(cumulativeGPA, currentSemester.subjects, gpaSettings);
 
   // Add new subject
   const addSubject = () => {
@@ -208,15 +213,36 @@ export default function HomePage() {
     setCurrentSemesterIndex(studentData.semesters.length);
   };
 
+  // Handle GPA settings save
+  const handleGPASettingsSave = (newSettings: GPASettings) => {
+    setStudentData(prev => ({
+      ...prev,
+      gpaSettings: newSettings
+    }));
+  };
+
   // Handle file import
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       try {
-        const data = await importData(file);
+        let data: StudentRecord;
+        
+        // Kiểm tra loại file
+        const fileName = file.name.toLowerCase();
+        if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+          // Import file Excel
+          data = await importFromExcel(file);
+        } else if (fileName.endsWith('.json')) {
+          // Import file JSON
+          data = await importData(file);
+        } else {
+          throw new Error('Định dạng file không được hỗ trợ. Chỉ hỗ trợ file .xlsx, .xls hoặc .json');
+        }
+        
         setStudentData(data);
         setCurrentSemesterIndex(0);
-        alert('Import dữ liệu thành công!');
+        alert('Import dữ liệu thành công! 🎉');
       } catch (error) {
         alert('Lỗi import: ' + (error as Error).message);
       }
@@ -252,16 +278,10 @@ export default function HomePage() {
       {/* Action buttons */}
       <div className="flex flex-wrap gap-4 justify-center">
         <button 
-          onClick={() => exportDetailedExcel(studentData)}
+          onClick={() => exportSimpleExcel(studentData)}
           className="btn-primary flex items-center gap-2"
         >
-          📊 Xuất Excel chi tiết
-        </button>
-        <button 
-          onClick={() => exportToExcel(studentData)}
-          className="btn-secondary flex items-center gap-2"
-        >
-          📈 Xuất Excel cơ bản
+          📊 Xuất Excel
         </button>
         <button 
           onClick={() => exportData(studentData)}
@@ -270,10 +290,10 @@ export default function HomePage() {
           📥 Xuất JSON
         </button>
         <label className="btn-secondary flex items-center gap-2 cursor-pointer">
-          📤 Nhập file
+          📤 Nhập file (JSON/Excel)
           <input 
             type="file" 
-            accept=".json" 
+            accept=".json,.xlsx,.xls" 
             onChange={handleImport}
             className="hidden"
           />
@@ -290,6 +310,12 @@ export default function HomePage() {
           className="btn-secondary flex items-center gap-2"
         >
           💾 Thông tin lưu trữ
+        </button>
+        <button 
+          onClick={() => setShowGPASettings(true)}
+          className="btn-secondary flex items-center gap-2"
+        >
+          ⚙️ Cấu hình thang đo
         </button>
       </div>
 
@@ -400,7 +426,9 @@ export default function HomePage() {
                           : 'text-gray-700'
                       }`}>
                         <span className={`w-2 h-2 rounded-full ${
-                          index === currentSemesterIndex ? 'bg-primary-500' : 'bg-gray-400'
+                          index === currentSemesterIndex
+                            ? 'bg-primary-500'
+                            : 'bg-gray-400'
                         }`}></span>
                         {editingSemester?.id === semester.id ? (
                           <input
@@ -599,7 +627,7 @@ export default function HomePage() {
                   {academicLevel.level}
                 </div>
                 <div className="text-sm text-gray-600 mt-1">
-                  GPA: {cumulativeGPA.toFixed(3)} (Thang 4.0)
+                  GPA: {cumulativeGPA.toFixed(3)} (Thang {gpaSettings.maxGPA})
                 </div>
                 <div className="text-sm text-gray-600">
                   Khoảng: {academicLevel.minGPA.toFixed(1)} - {academicLevel.maxGPA.toFixed(1)}
@@ -610,7 +638,7 @@ export default function HomePage() {
               <div className="mt-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">🏆 Đủ điều kiện học bổng:</h4>
                 <div className="space-y-1">
-                  {SCHOLARSHIPS.map((scholarship) => (
+                  {scholarships.map((scholarship) => (
                     <div 
                       key={scholarship.name}
                       className={`p-2 rounded text-sm ${
@@ -652,6 +680,14 @@ export default function HomePage() {
         onClose={() => setShowSimulation(false)}
         subjects={currentSemester.subjects}
         currentGPA={cumulativeGPA}
+      />
+
+      {/* GPA Settings Modal */}
+      <GPASettingsModal
+        isOpen={showGPASettings}
+        onClose={() => setShowGPASettings(false)}
+        currentSettings={gpaSettings}
+        onSave={handleGPASettingsSave}
       />
     </div>
   );
