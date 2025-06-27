@@ -640,6 +640,7 @@ export function restoreFromBackup(): StudentRecord[] {
         if (data) {
           const backup = JSON.parse(data);
           backup._backupDate = new Date(parseInt(key.split('_').pop() || '0')).toLocaleString('vi-VN');
+          backup._backupKey = key; // Thêm key để có thể xóa backup
           backups.push(backup);
         }
       } catch (error) {

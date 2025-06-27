@@ -26,6 +26,9 @@ export interface Subject {
   studyTime?: number; // số giờ học/tuần
   labHours?: number; // số tiết thực hành
   theoryHours?: number; // số tiết lý thuyết
+  
+  // Thời khóa biểu
+  schedule?: ClassSchedule[];
 }
 
 export interface Semester {
@@ -84,4 +87,28 @@ export interface StudentRecord {
   totalCredits: number;
   completedCredits: number;
   gpaSettings?: GPASettings; // Cấu hình thang đo tùy chỉnh
+}
+
+export interface ClassSchedule {
+  id: string;
+  subjectId: string;
+  dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Chủ nhật, 1 = Thứ 2, ..., 6 = Thứ 7
+  startTime: string; // "08:00"
+  endTime: string; // "10:00"
+  room: string; // "A101"
+  building?: string; // "Tòa nhà A"
+  instructor?: string; // "TS. Nguyễn Văn A"
+  type: 'lecture' | 'lab' | 'tutorial' | 'exam'; // loại tiết học
+  weeks?: number[]; // các tuần học [1,2,3,...,16]
+  note?: string; // ghi chú
+}
+
+export interface TimeSlot {
+  period: number; // tiết thứ mấy (1-12)
+  startTime: string;
+  endTime: string;
+}
+
+export interface WeekSchedule {
+  [key: number]: ClassSchedule[]; // key = dayOfWeek (0-6)
 } 

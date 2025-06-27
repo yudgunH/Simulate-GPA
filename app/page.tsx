@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Subject, Semester, StudentRecord, GPASettings } from '@/types';
+import { Subject, Semester, StudentRecord, GPASettings, ClassSchedule } from '@/types';
 import { 
   calculateSemesterGPA, 
   calculateCumulativeGPA, 
@@ -25,6 +25,8 @@ import {
 } from '@/utils/storage';
 import SimulationModal from '@/components/SimulationModal';
 import GPASettingsModal from '@/components/GPASettingsModal';
+import BackupModal from '@/components/BackupModal';
+import ScheduleModal from '@/components/ScheduleModal';
 
 export default function HomePage() {
   const [studentData, setStudentData] = useState<StudentRecord>(createDefaultData());
@@ -32,6 +34,8 @@ export default function HomePage() {
   const [showSimulation, setShowSimulation] = useState(false);
   const [showStorageInfo, setShowStorageInfo] = useState(false);
   const [showGPASettings, setShowGPASettings] = useState(false);
+  const [showBackup, setShowBackup] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [editingSemester, setEditingSemester] = useState<{id: string, name: string} | null>(null);
@@ -221,6 +225,32 @@ export default function HomePage() {
     }));
   };
 
+  // Handle backup restore
+  const handleBackupRestore = (backupData: StudentRecord) => {
+    setStudentData(backupData);
+    setCurrentSemesterIndex(0); // Reset về học kỳ đầu tiên
+    alert('Đã khôi phục backup thành công! 🎉');
+  };
+
+  // Handle schedule update for subject
+  const handleScheduleUpdate = (subjectId: string, schedule: ClassSchedule[]) => {
+    setStudentData(prev => ({
+      ...prev,
+      semesters: prev.semesters.map((sem, index) => 
+        index === currentSemesterIndex 
+          ? {
+              ...sem,
+              subjects: sem.subjects.map(sub => 
+                sub.id === subjectId 
+                  ? { ...sub, schedule }
+                  : sub
+              ),
+            }
+          : sem
+      ),
+    }));
+  };
+
   // Handle file import
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -317,6 +347,12 @@ export default function HomePage() {
         >
           ⚙️ Cấu hình thang đo
         </button>
+        <button 
+          onClick={() => setShowSchedule(true)}
+          className="btn-secondary flex items-center gap-2"
+        >
+          📅 Thời khóa biểu
+        </button>
       </div>
 
       {/* Storage Info Panel */}
@@ -342,25 +378,46 @@ export default function HomePage() {
             </div>
             <div className="space-y-2">
               <button 
-                onClick={() => {
-                  const backups = restoreFromBackup();
-                  if (backups.length > 0) {
-                    alert(`Có ${backups.length} backup. Chức năng khôi phục sẽ được bổ sung.`);
-                  } else {
-                    alert('Không có backup nào.');
-                  }
-                }}
+                onClick={() => setShowBackup(true)}
                 className="btn-secondary text-sm w-full"
               >
                 🔄 Xem backup
               </button>
               <button 
                 onClick={() => {
-                  console.log('🔍 Debug localStorage:');
-                  console.log('Current studentData:', studentData);
-                  console.log('localStorage content:', localStorage.getItem('simulate-gpa-data'));
-                  console.log('Storage stats:', getStorageStats());
-                  alert('Kiểm tra console (F12) để xem thông tin debug!');
+                  console.clear();
+                  console.log('🔍 === DEBUG STORAGE INFO ===');
+                  console.log('📊 Current studentData:', studentData);
+                  console.log('📋 localStorage raw data:', localStorage.getItem('simulate-gpa-data'));
+                  console.log('📈 Storage stats:', getStorageStats());
+                  console.log('🔄 Available backups:', restoreFromBackup());
+                  console.log('🗂️ All localStorage keys:', Object.keys(localStorage));
+                  console.log('💾 GPA Settings:', studentData.gpaSettings);
+                  console.log('🎯 Current semester index:', currentSemesterIndex);
+                  console.log('📚 Total subjects across all semesters:', 
+                    studentData.semesters.reduce((total, sem) => total + sem.subjects.length, 0)
+                  );
+                  console.log('⭐ Calculated GPA:', {
+                    semesterGPA,
+                    cumulativeGPA,
+                    academicLevel: academicLevel.level
+                  });
+                  console.log('=== END DEBUG INFO ===');
+                  
+                  // Tạo một modal thông báo với thông tin debug tóm tắt
+                  const debugInfo = `
+📊 Thông tin Debug:
+• Sinh viên: ${studentData.studentName}
+• Số học kỳ: ${studentData.semesters.length}
+• Tổng môn học: ${studentData.semesters.reduce((total, sem) => total + sem.subjects.length, 0)}
+• GPA tích lũy: ${cumulativeGPA.toFixed(3)}
+• Thang đo: ${studentData.gpaSettings?.maxGPA || 4.0}
+• Số backup: ${getStorageStats().backupCount}
+• Dung lượng: ${getStorageStats().totalSize}
+
+🔍 Chi tiết đầy đủ đã được in ra Console (F12)
+                  `;
+                  alert(debugInfo);
                 }}
                 className="btn-secondary text-sm w-full"
               >
@@ -453,9 +510,14 @@ export default function HomePage() {
                       </div>
                       
                       {index === currentSemesterIndex && (
-                        <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">
-                          {semester.subjects.length} môn
-                        </span>
+                        <div className="flex gap-2">
+                          <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">
+                            {semester.subjects.length} môn
+                          </span>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                            {semester.subjects.reduce((total, sub) => total + (sub.schedule?.length || 0), 0)} lịch
+                          </span>
+                        </div>
                       )}
                     </div>
                     
@@ -522,6 +584,7 @@ export default function HomePage() {
                     <th className="text-left p-3 border-b font-medium">Tên môn học</th>
                     <th className="text-left p-3 border-b font-medium">Tín chỉ</th>
                     <th className="text-left p-3 border-b font-medium">Điểm</th>
+                    <th className="text-left p-3 border-b font-medium">Lịch học</th>
                     <th className="text-left p-3 border-b font-medium">Thao tác</th>
                   </tr>
                 </thead>
@@ -558,6 +621,20 @@ export default function HomePage() {
                           max="10"
                           step="0.1"
                         />
+                      </td>
+                      <td className="p-3 border-b">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600">
+                            {subject.schedule?.length || 0} lịch
+                          </span>
+                          <button
+                            onClick={() => setShowSchedule(true)}
+                            className="text-blue-600 hover:text-blue-800 p-1 text-sm"
+                            title="Xem/Chỉnh sửa lịch học"
+                          >
+                            📅
+                          </button>
+                        </div>
                       </td>
                       <td className="p-3 border-b">
                         <button
@@ -688,6 +765,21 @@ export default function HomePage() {
         onClose={() => setShowGPASettings(false)}
         currentSettings={gpaSettings}
         onSave={handleGPASettingsSave}
+      />
+
+      {/* Backup Modal */}
+      <BackupModal
+        isOpen={showBackup}
+        onClose={() => setShowBackup(false)}
+        onRestore={handleBackupRestore}
+      />
+
+      {/* Schedule Modal */}
+      <ScheduleModal
+        isOpen={showSchedule}
+        onClose={() => setShowSchedule(false)}
+        subjects={currentSemester.subjects}
+        onUpdateSubject={handleScheduleUpdate}
       />
     </div>
   );
