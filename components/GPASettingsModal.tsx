@@ -96,7 +96,8 @@ export default function GPASettingsModal({
   };
 
   const presetLabels = {
-    'vn-4.0': 'Việt Nam (4.0)',
+    'vn-4.0': 'Việt Nam (step 0.5)',
+    'vn-4.0-step3': 'Việt Nam (step 0.3)',
     'us-4.0': 'Mỹ (4.0)',
     'us-4.3': 'Mỹ (4.3)',
     'simple-4.0': 'Đơn giản (A, B, C, D)',

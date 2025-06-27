@@ -1,19 +1,19 @@
 import { Subject, Semester, StudentRecord, GPAScale, GPASettings, AcademicLevel, ScholarshipRequirement } from '@/types';
 
-// Thang điểm 4.0 mặc định - Cập nhật theo yêu cầu mới
+// Thang điểm 4.0 Việt Nam chuẩn - Sử dụng step 0.5
 export const DEFAULT_GPA_SCALE: GPAScale = {
   A_PLUS: 4.0,   // 9.0-10.0
-  A: 3.7,        // 8.5-8.9
-  B_PLUS: 3.3,   // 8.0-8.4
+  A: 3.5,        // 8.5-8.9  
+  B_PLUS: 3.5,   // 8.0-8.4
   B: 3.0,        // 7.0-7.9
-  C_PLUS: 2.3,   // 6.5-6.9
+  C_PLUS: 2.5,   // 6.5-6.9
   C: 2.0,        // 5.5-6.4
-  D_PLUS: 1.3,   // 5.0-5.4
+  D_PLUS: 1.5,   // 5.0-5.4
   D: 1.0,        // 4.0-4.9
   F: 0.0,        // 0-3.9
 };
 
-// Cấu hình thang đo mặc định
+// Cấu hình thang đo mặc định - Việt Nam chuẩn
 export const DEFAULT_GPA_SETTINGS: GPASettings = {
   scale: DEFAULT_GPA_SCALE,
   gradeRanges: {
@@ -33,6 +33,21 @@ export const DEFAULT_GPA_SETTINGS: GPASettings = {
 // Các thang đo phổ biến
 export const PRESET_GPA_SETTINGS: { [key: string]: GPASettings } = {
   'vn-4.0': DEFAULT_GPA_SETTINGS,
+  'vn-4.0-step3': {
+    scale: { A_PLUS: 4.0, A: 3.7, B_PLUS: 3.3, B: 3.0, C_PLUS: 2.3, C: 2.0, D_PLUS: 1.3, D: 1.0, F: 0.0 },
+    gradeRanges: {
+      A_PLUS: { min: 9.0, max: 10.0 },
+      A: { min: 8.5, max: 8.9 },
+      B_PLUS: { min: 8.0, max: 8.4 },
+      B: { min: 7.0, max: 7.9 },
+      C_PLUS: { min: 6.5, max: 6.9 },
+      C: { min: 5.5, max: 6.4 },
+      D_PLUS: { min: 5.0, max: 5.4 },
+      D: { min: 4.0, max: 4.9 },
+      F: { min: 0, max: 3.9 },
+    },
+    maxGPA: 4.0
+  },
   'us-4.0': {
     scale: { A_PLUS: 4.0, A: 4.0, B_PLUS: 3.3, B: 3.0, C_PLUS: 2.3, C: 2.0, D_PLUS: 1.3, D: 1.0, F: 0.0 },
     gradeRanges: {
