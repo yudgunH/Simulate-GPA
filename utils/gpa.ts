@@ -1,19 +1,21 @@
 import { Subject, Semester, StudentRecord, GPAScale, AcademicLevel, ScholarshipRequirement } from '@/types';
 
-// Thang điểm 4.0
+// Thang điểm 4.0 - Cập nhật theo yêu cầu mới
 export const GPA_SCALE: GPAScale = {
-  A: 4.0,        // 8.5-10
-  B_PLUS: 3.5,   // 8.0-8.4
+  A_PLUS: 4.0,   // 9.0-10.0
+  A: 3.7,        // 8.5-8.9
+  B_PLUS: 3.3,   // 8.0-8.4
   B: 3.0,        // 7.0-7.9
-  C_PLUS: 2.5,   // 6.5-6.9
+  C_PLUS: 2.3,   // 6.5-6.9
   C: 2.0,        // 5.5-6.4
-  D_PLUS: 1.5,   // 5.0-5.4
+  D_PLUS: 1.3,   // 5.0-5.4
   D: 1.0,        // 4.0-4.9
   F: 0.0,        // 0-3.9
 };
 
 // Chuyển đổi điểm số sang thang 4.0
 export function convertGradeToGPA(grade: number): number {
+  if (grade >= 9.0) return GPA_SCALE.A_PLUS;
   if (grade >= 8.5) return GPA_SCALE.A;
   if (grade >= 8.0) return GPA_SCALE.B_PLUS;
   if (grade >= 7.0) return GPA_SCALE.B;
@@ -26,14 +28,28 @@ export function convertGradeToGPA(grade: number): number {
 
 // Chuyển đổi điểm 4.0 về thang 10
 export function convertGPAToGrade(gpa: number): number {
-  if (gpa >= 4.0) return 9.0;
-  if (gpa >= 3.5) return 8.2;
-  if (gpa >= 3.0) return 7.5;
-  if (gpa >= 2.5) return 6.7;
-  if (gpa >= 2.0) return 6.0;
-  if (gpa >= 1.5) return 5.2;
-  if (gpa >= 1.0) return 4.5;
-  return 2.0;
+  if (gpa >= 4.0) return 9.5;   // A+
+  if (gpa >= 3.7) return 8.7;   // A
+  if (gpa >= 3.3) return 8.2;   // B+
+  if (gpa >= 3.0) return 7.5;   // B
+  if (gpa >= 2.3) return 6.7;   // C+
+  if (gpa >= 2.0) return 6.0;   // C
+  if (gpa >= 1.3) return 5.2;   // D+
+  if (gpa >= 1.0) return 4.5;   // D
+  return 2.0;                   // F
+}
+
+// Lấy letter grade từ điểm số
+export function getLetterGrade(grade: number): string {
+  if (grade >= 9.0) return "A+";
+  if (grade >= 8.5) return "A";
+  if (grade >= 8.0) return "B+";
+  if (grade >= 7.0) return "B";
+  if (grade >= 6.5) return "C+";
+  if (grade >= 5.5) return "C";
+  if (grade >= 5.0) return "D+";
+  if (grade >= 4.0) return "D";
+  return "F";
 }
 
 // Tính GPA cho một học kỳ
@@ -72,12 +88,12 @@ export function calculateCumulativeGPA(semesters: Semester[]): number {
   return totalCredits > 0 ? totalPoints / totalCredits : 0;
 }
 
-// Xác định học lực
+// Xác định học lực - Cập nhật theo thang điểm mới
 export const ACADEMIC_LEVELS: AcademicLevel[] = [
-  { level: 'Xuất sắc', minGPA: 3.6, maxGPA: 4.0, color: 'text-purple-600' },
-  { level: 'Giỏi', minGPA: 3.2, maxGPA: 3.59, color: 'text-blue-600' },
-  { level: 'Khá', minGPA: 2.5, maxGPA: 3.19, color: 'text-green-600' },
-  { level: 'Trung bình', minGPA: 2.0, maxGPA: 2.49, color: 'text-yellow-600' },
+  { level: 'Xuất sắc', minGPA: 3.7, maxGPA: 4.0, color: 'text-purple-600' },
+  { level: 'Giỏi', minGPA: 3.3, maxGPA: 3.69, color: 'text-blue-600' },
+  { level: 'Khá', minGPA: 2.3, maxGPA: 3.29, color: 'text-green-600' },
+  { level: 'Trung bình', minGPA: 2.0, maxGPA: 2.29, color: 'text-yellow-600' },
   { level: 'Yếu', minGPA: 1.0, maxGPA: 1.99, color: 'text-orange-600' },
   { level: 'Kém', minGPA: 0.0, maxGPA: 0.99, color: 'text-red-600' },
 ];
@@ -86,11 +102,11 @@ export function getAcademicLevel(gpa: number): AcademicLevel {
   return ACADEMIC_LEVELS.find(level => gpa >= level.minGPA && gpa <= level.maxGPA) || ACADEMIC_LEVELS[5];
 }
 
-// Danh sách học bổng
+// Danh sách học bổng - Cập nhật theo thang điểm mới
 export const SCHOLARSHIPS: ScholarshipRequirement[] = [
-  { name: 'Học bổng Xuất sắc', minGPA: 3.6, description: 'Dành cho sinh viên có GPA >= 3.6' },
-  { name: 'Học bổng Khuyến khích học tập', minGPA: 3.2, description: 'Dành cho sinh viên có GPA >= 3.2' },
-  { name: 'Học bổng Tiến bộ', minGPA: 2.8, description: 'Dành cho sinh viên có GPA >= 2.8' },
+  { name: 'Học bổng Xuất sắc', minGPA: 3.7, description: 'Dành cho sinh viên có GPA >= 3.7 (điểm A)' },
+  { name: 'Học bổng Khuyến khích học tập', minGPA: 3.3, description: 'Dành cho sinh viên có GPA >= 3.3 (điểm B+)' },
+  { name: 'Học bổng Tiến bộ', minGPA: 3.0, description: 'Dành cho sinh viên có GPA >= 3.0 (điểm B)' },
 ];
 
 // Tính điểm cần thiết để đạt mục tiêu GPA
@@ -130,7 +146,7 @@ export function simulateGradeChange(
   return { newGPA, change };
 }
 
-// Lấy gợi ý cải thiện GPA
+// Lấy gợi ý cải thiện GPA - Cập nhật theo thang điểm mới
 export function getImprovementSuggestions(
   currentGPA: number,
   subjects: Subject[]
@@ -141,19 +157,24 @@ export function getImprovementSuggestions(
   if (currentGPA < 2.0) {
     suggestions.push('🚨 GPA hiện tại ở mức Yếu. Cần cải thiện ngay lập tức!');
     suggestions.push('📚 Tập trung vào các môn có số tín chỉ cao');
-    suggestions.push('💪 Cần đạt ít nhất 6.0 điểm ở các môn sắp tới');
-  } else if (currentGPA < 2.5) {
+    suggestions.push('💪 Cần đạt ít nhất 5.5-6.4 điểm (grade C) ở các môn sắp tới');
+  } else if (currentGPA < 2.3) {
     suggestions.push('⚠️ GPA đang ở mức Trung bình. Có thể cải thiện!');
-    suggestions.push('🎯 Cố gắng đạt 7.0+ ở các môn tiếp theo');
-  } else if (currentGPA < 3.2) {
+    suggestions.push('🎯 Cố gắng đạt 6.5+ điểm (grade C+) ở các môn tiếp theo');
+  } else if (currentGPA < 3.3) {
     suggestions.push('👍 GPA đang ở mức Khá. Hãy phấn đấu lên Giỏi!');
-    suggestions.push('🏆 Cần đạt 8.0+ để có cơ hội học bổng');
-  } else if (currentGPA < 3.6) {
+    suggestions.push('🏆 Cần đạt 8.0+ điểm (grade B+) để có cơ hội học bổng');
+  } else if (currentGPA < 3.7) {
     suggestions.push('🌟 GPA đang ở mức Giỏi. Gần đạt Xuất sắc!');
-    suggestions.push('💎 Cần đạt 8.5+ để lên mức Xuất sắc');
-  } else {
+    suggestions.push('💎 Cần đạt 8.5+ điểm (grade A) để lên mức Xuất sắc');
+  } else if (currentGPA < 4.0) {
     suggestions.push('🎉 Xuất sắc! Hãy duy trì phẩm độ này!');
     suggestions.push('👑 Bạn đang đủ điều kiện cho các học bổng cao nhất');
+    suggestions.push('⭐ Cố gắng đạt 9.0+ điểm (grade A+) để hoàn hảo!');
+  } else {
+    suggestions.push('🏆 Hoàn hảo! GPA 4.0 - Đỉnh cao học tập!');
+    suggestions.push('👑 Bạn đã đạt được thành tích xuất sắc nhất');
+    suggestions.push('🌟 Hãy tiếp tục duy trì sự xuất sắc này!');
   }
   
   return suggestions;

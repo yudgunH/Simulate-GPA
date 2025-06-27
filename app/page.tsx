@@ -9,26 +9,57 @@ import {
   SCHOLARSHIPS,
   getImprovementSuggestions 
 } from '@/utils/gpa';
-import { saveData, loadData, createDefaultData, exportData, importData, generateId } from '@/utils/storage';
+import { 
+  saveData, 
+  loadData, 
+  createDefaultData, 
+  exportData, 
+  importData, 
+  generateId,
+  exportToExcel,
+  saveDataWithBackup,
+  getStorageStats,
+  restoreFromBackup
+} from '@/utils/storage';
 import SimulationModal from '@/components/SimulationModal';
 
 export default function HomePage() {
   const [studentData, setStudentData] = useState<StudentRecord>(createDefaultData());
   const [currentSemesterIndex, setCurrentSemesterIndex] = useState(0);
   const [showSimulation, setShowSimulation] = useState(false);
+  const [showStorageInfo, setShowStorageInfo] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
 
   // Load data on mount
   useEffect(() => {
     const saved = loadData();
     if (saved) {
       setStudentData(saved);
+      console.log('✅ Đã tải dữ liệu từ localStorage:', saved);
+    } else {
+      console.log('ℹ️ Không có dữ liệu trong localStorage, sử dụng dữ liệu mặc định');
     }
+    setIsLoaded(true);
   }, []);
 
-  // Save data whenever it changes
+  // Save data whenever it changes (nhưng chỉ sau khi đã load xong)
   useEffect(() => {
-    saveData(studentData);
-  }, [studentData]);
+    if (isLoaded) {
+      setSaveStatus('saving');
+      try {
+        saveDataWithBackup(studentData);
+        console.log('💾 Đã lưu dữ liệu vào localStorage');
+        setSaveStatus('saved');
+        
+        // Reset về saved sau 2 giây
+        setTimeout(() => setSaveStatus('saved'), 2000);
+      } catch (error) {
+        console.error('❌ Lỗi khi lưu:', error);
+        setSaveStatus('error');
+      }
+    }
+  }, [studentData, isLoaded]);
 
   const currentSemester = studentData.semesters[currentSemesterIndex];
   const semesterGPA = calculateSemesterGPA(currentSemester.subjects);
@@ -128,15 +159,34 @@ export default function HomePage() {
         <p className="text-lg text-gray-600">
           Tính toán GPA và mô phỏng kết quả học tập - trước khi bảng điểm thật xuất hiện! 🎓
         </p>
+        
+        {/* Save Status Indicator */}
+        <div className="mt-2">
+          {saveStatus === 'saving' && (
+            <span className="text-blue-600 text-sm">💾 Đang lưu...</span>
+          )}
+          {saveStatus === 'saved' && (
+            <span className="text-green-600 text-sm">✅ Đã lưu tự động</span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="text-red-600 text-sm">❌ Lỗi lưu dữ liệu</span>
+          )}
+        </div>
       </div>
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-4 justify-center">
         <button 
-          onClick={() => exportData(studentData)}
+          onClick={() => exportToExcel(studentData)}
           className="btn-primary flex items-center gap-2"
         >
-          📥 Xuất file
+          📊 Xuất Excel
+        </button>
+        <button 
+          onClick={() => exportData(studentData)}
+          className="btn-secondary flex items-center gap-2"
+        >
+          📥 Xuất JSON
         </button>
         <label className="btn-secondary flex items-center gap-2 cursor-pointer">
           📤 Nhập file
@@ -159,7 +209,76 @@ export default function HomePage() {
         >
           🎯 Mô phỏng kết quả
         </button>
+        <button 
+          onClick={() => setShowStorageInfo(!showStorageInfo)}
+          className="btn-secondary flex items-center gap-2"
+        >
+          💾 Thông tin lưu trữ
+        </button>
       </div>
+
+      {/* Storage Info Panel */}
+      {showStorageInfo && (
+        <div className="card bg-blue-50 border border-blue-200">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-700">
+            💾 Thông tin lưu trữ localStorage
+          </h3>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="text-sm">
+                <span className="font-medium">📊 Dung lượng dữ liệu:</span> {getStorageStats().dataSize}
+              </div>
+              <div className="text-sm">
+                <span className="font-medium">🔄 Số backup:</span> {getStorageStats().backupCount}
+              </div>
+              <div className="text-sm">
+                <span className="font-medium">💽 Tổng dung lượng:</span> {getStorageStats().totalSize}
+              </div>
+              <div className="text-sm">
+                <span className="font-medium">⏰ Lần lưu cuối:</span> {getStorageStats().lastSaved}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <button 
+                onClick={() => {
+                  const backups = restoreFromBackup();
+                  if (backups.length > 0) {
+                    alert(`Có ${backups.length} backup. Chức năng khôi phục sẽ được bổ sung.`);
+                  } else {
+                    alert('Không có backup nào.');
+                  }
+                }}
+                className="btn-secondary text-sm w-full"
+              >
+                🔄 Xem backup
+              </button>
+              <button 
+                onClick={() => {
+                  console.log('🔍 Debug localStorage:');
+                  console.log('Current studentData:', studentData);
+                  console.log('localStorage content:', localStorage.getItem('simulate-gpa-data'));
+                  console.log('Storage stats:', getStorageStats());
+                  alert('Kiểm tra console (F12) để xem thông tin debug!');
+                }}
+                className="btn-secondary text-sm w-full"
+              >
+                🔍 Debug storage
+              </button>
+              <button 
+                onClick={() => {
+                  if (confirm('Bạn có chắc muốn xóa tất cả dữ liệu?')) {
+                    localStorage.clear();
+                    window.location.reload();
+                  }
+                }}
+                className="btn-secondary text-sm w-full text-red-600 hover:bg-red-50"
+              >
+                🗑️ Xóa tất cả
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Left column: Input form */}
@@ -347,3 +466,4 @@ export default function HomePage() {
     </div>
   );
 }
+

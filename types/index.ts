@@ -23,6 +23,7 @@ export interface StudentRecord {
 }
 
 export interface GPAScale {
+  A_PLUS: number;
   A: number;
   B_PLUS: number;
   B: number;
